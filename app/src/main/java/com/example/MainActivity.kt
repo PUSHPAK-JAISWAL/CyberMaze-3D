@@ -53,10 +53,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.AppNavTab
 import com.example.ui.MainViewModel
+import com.example.ui.components.UpdateDialog
 import com.example.ui.screens.GameScreen
 import com.example.ui.screens.HolodeckScreen
 import com.example.ui.screens.MotionLabScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.update.UpdateState
 import com.example.ui.theme.CyberBackgroundDark
 import com.example.ui.theme.CyberCardBorder
 import com.example.ui.theme.CyberCyanAccent
@@ -94,6 +96,16 @@ fun CyberMazeApp(viewModel: MainViewModel) {
     val isGenerating by viewModel.isGeneratingLevel.collectAsStateWithLifecycle()
     val genStatus by viewModel.generationMessage.collectAsStateWithLifecycle()
     val apiTestResult by viewModel.apiTestResult.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+
+    // In-App Update Dialog
+    UpdateDialog(
+        updateState = updateState,
+        onStartDownload = { info -> viewModel.startUpdateDownload(info) },
+        onInstallNow = { file -> viewModel.installDownloadedApk(file) },
+        onSaveToDownloads = { file -> viewModel.saveUpdateToDownloads(file) },
+        onDismiss = { viewModel.dismissUpdateDialog() }
+    )
 
     // Back handler: pop sub-screens back to Arena
     BackHandler(enabled = currentTab != AppNavTab.ARENA) {
@@ -402,7 +414,8 @@ private fun ScreenContent(
                     viewModel.testApiConnection(prov, key, mod, url)
                 },
                 onClearTestResult = { viewModel.clearApiTestResult() },
-                onClearMovementLogs = { viewModel.clearMovementHistory() }
+                onClearMovementLogs = { viewModel.clearMovementHistory() },
+                onCheckForUpdates = { viewModel.checkForUpdates(silent = false) }
             )
         }
     }

@@ -11,14 +11,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val CyberDarkColorScheme = darkColorScheme(
+private val CheerfulCyberColorScheme = lightColorScheme(
     primary = CyberMintPrimary,
+    onPrimary = Color(0xFF003822),
+    primaryContainer = CyberMintContainer,
+    onPrimaryContainer = CyberMintOnContainer,
+    secondary = CyberCyanAccent,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD0F4FC),
+    onSecondaryContainer = Color(0xFF002F38),
+    tertiary = CyberAmberWarning,
+    onTertiary = Color(0xFF452B00),
+    background = CyberBackgroundBright,
+    onBackground = TextPrimaryBright,
+    surface = CyberSurfaceBright,
+    onSurface = TextPrimaryBright,
+    surfaceVariant = CyberSurfaceVariantBright,
+    onSurfaceVariant = TextSecondaryBright,
+    outline = CyberCardBorderBright,
+    error = CyberLaserRed,
+    onError = Color.White
+)
+
+private val LuminousDarkColorScheme = darkColorScheme(
+    primary = CyberMintLight,
     onPrimary = Color(0xFF003822),
     primaryContainer = CyberSurfaceCard,
     onPrimaryContainer = CyberMintLight,
     secondary = CyberCyanAccent,
     onSecondary = Color(0xFF00363D),
-    secondaryContainer = Color(0xFF0D3D37),
+    secondaryContainer = Color(0xFF16473D),
     onSecondaryContainer = Color(0xFFA1F5FF),
     tertiary = CyberAmberWarning,
     onTertiary = Color(0xFF452B00),
@@ -33,32 +55,10 @@ private val CyberDarkColorScheme = darkColorScheme(
     onError = Color.White
 )
 
-private val CyberLightColorScheme = lightColorScheme(
-    primary = CyberMintDark,
-    onPrimary = Color.White,
-    primaryContainer = CyberMintContainer,
-    onPrimaryContainer = CyberMintOnContainer,
-    secondary = Color(0xFF007A87),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFC7F7FF),
-    onSecondaryContainer = Color(0xFF001F24),
-    tertiary = Color(0xFF8A5800),
-    onTertiary = Color.White,
-    background = Color(0xFFF2FBF7),
-    onBackground = Color(0xFF0A1C16),
-    surface = Color.White,
-    onSurface = Color(0xFF0A1C16),
-    surfaceVariant = Color(0xFFE0F5EC),
-    onSurfaceVariant = Color(0xFF264C3E),
-    outline = Color(0xFF91D4BA),
-    error = CyberLaserRed,
-    onError = Color.White
-)
-
 @Composable
 fun CyberMazeTheme(
-    darkTheme: Boolean = true, // Default to cyber dark theme for immersive cyberpunk gameplay
-    dynamicColor: Boolean = false, // Keep distinctive cyber emerald branding
+    darkTheme: Boolean = false, // Default to bright and uplifting theme per user's preference!
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -66,8 +66,8 @@ fun CyberMazeTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> CyberDarkColorScheme
-        else -> CyberLightColorScheme
+        darkTheme -> LuminousDarkColorScheme
+        else -> CheerfulCyberColorScheme
     }
 
     MaterialTheme(

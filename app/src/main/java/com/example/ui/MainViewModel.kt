@@ -86,6 +86,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _apiTestResult = MutableStateFlow<String?>(null)
     val apiTestResult: StateFlow<String?> = _apiTestResult.asStateFlow()
 
+    // In-App GitHub Update Manager
+    val updateManager = com.example.update.UpdateManager(application, viewModelScope)
+    val updateState = updateManager.updateState
+
     private var gameLoopJob: Job? = null
     private var enemyAiLoopJob: Job? = null
 
@@ -101,6 +105,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Start game tick loop
         startGameLoops()
+
+        // Check for updates silently on launch
+        updateManager.checkForUpdates(silent = true)
+    }
+
+    fun checkForUpdates(silent: Boolean = false) {
+        updateManager.checkForUpdates(silent)
+    }
+
+    fun startUpdateDownload(info: com.example.update.UpdateInfo) {
+        updateManager.startDownload(info)
+    }
+
+    fun installDownloadedApk(file: java.io.File) {
+        updateManager.retryInstall(file)
+    }
+
+    fun saveUpdateToDownloads(file: java.io.File) {
+        updateManager.exportToDownloads(file)
+    }
+
+    fun dismissUpdateDialog() {
+        updateManager.dismissUpdate()
     }
 
     fun selectTab(tab: AppNavTab) {

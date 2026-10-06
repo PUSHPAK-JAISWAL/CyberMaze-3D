@@ -80,7 +80,8 @@ fun SettingsScreen(
     onSaveSettings: (GameSettingsEntity) -> Unit,
     onTestApiConnection: (provider: String, key: String, model: String, baseUrl: String) -> Unit,
     onClearTestResult: () -> Unit,
-    onClearMovementLogs: () -> Unit
+    onClearMovementLogs: () -> Unit,
+    onCheckForUpdates: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -462,6 +463,46 @@ fun SettingsScreen(
                 ) {
                     Text(text = "CLEAR MOVEMENT TELEMETRY LOGS", color = CyberLaserRed, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 }
+            }
+        }
+
+        // GitHub Releases In-App Update System
+        CyberCard(
+            modifier = Modifier.fillMaxWidth(),
+            backgroundColor = Color(0xFF0C2B20),
+            borderColor = CyberMintPrimary.copy(alpha = 0.5f)
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.NetworkCheck, contentDescription = null, tint = CyberMintLight, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "GITHUB RELEASES & IN-APP UPDATES",
+                        color = CyberMintLight,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Source: github.com/PUSHPAK-JAISWAL/cybermaze-3d\nVersion: ${com.example.BuildConfig.VERSION_NAME} • CI/CD deterministic package verification",
+                    color = TextSecondaryDark,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                CyberPillButton(
+                    text = "CHECK FOR UPDATES NOW",
+                    icon = Icons.Default.NetworkCheck,
+                    onClick = onCheckForUpdates,
+                    isPrimary = true,
+                    modifier = Modifier.fillMaxWidth().testTag("btn_check_github_updates")
+                )
             }
         }
     }

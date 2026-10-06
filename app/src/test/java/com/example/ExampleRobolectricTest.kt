@@ -66,4 +66,20 @@ class ExampleRobolectricTest {
         assertNotNull(vm.gameState.value)
         assertEquals("Initial Boot Sequence: Neural Arena initialized.", vm.gameState.value.currentLevel.aiBriefing)
     }
+
+    @Test
+    fun `version util correctly identifies newer releases`() {
+        // Same version
+        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.1.2"))
+        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "1.1.2"))
+
+        // Remote newer
+        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.1.3"))
+        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.2.0"))
+        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v2.0.0"))
+
+        // Local newer
+        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.2.0", "v1.1.9"))
+        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("2.0.0", "v1.9.9"))
+    }
 }

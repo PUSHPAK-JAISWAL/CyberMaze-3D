@@ -158,24 +158,24 @@ class Game3DRenderer {
     }
 
     private fun drawCyberGridBackground(drawScope: DrawScope, width: Float, height: Float, animTicks: Long) {
-        // Deep cyber obsidian backdrop
+        // Uplifting luminous cyber turquoise-mint atmosphere
         drawScope.drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color(0xFF040D0A),
-                    Color(0xFF071B14),
-                    Color(0xFF0B291E)
+                    Color(0xFF104335),
+                    Color(0xFF1B614E),
+                    Color(0xFF287D65)
                 )
             )
         )
 
-        // Subtle ambient scanning laser lines
+        // Luminous ambient scanning wave
         val pulseY = ((animTicks * 2.5f) % height)
         drawScope.drawLine(
-            color = Color(0x1A00E599),
+            color = Color(0x334EFEB3),
             start = Offset(0f, pulseY),
             end = Offset(width, pulseY),
-            strokeWidth = 2f
+            strokeWidth = 2.5f
         )
     }
 
@@ -211,55 +211,55 @@ class Game3DRenderer {
         val pEastBase = Offset(pEast.x, pEast.y + slabHeight)
         val pWestBase = Offset(pWest.x, pWest.y + slabHeight)
 
-        // Choose color palette based on tile type
+        // Choose color palette based on tile type (bright, vibrant, uplifting palette)
         val (topColor, leftSideColor, rightSideColor, outlineColor) = when (tile.type) {
             TileType.WALL -> Quad(
-                Color(0xFF0A2219),
-                Color(0xFF061610),
-                Color(0xFF030D09),
-                CyberMintDark
+                Color(0xFF1B5945),
+                Color(0xFF134535),
+                Color(0xFF0E3327),
+                CyberMintLight
             )
             TileType.ELEVATION_RAMP -> Quad(
-                Color(0xFF104A36),
-                Color(0xFF0C3829),
-                Color(0xFF08261C),
-                CyberMintPrimary
+                Color(0xFF2BA17F),
+                Color(0xFF218266),
+                Color(0xFF18664F),
+                Color(0xFF80FFD4)
             )
             TileType.DEPRESSION_PIT -> Quad(
-                Color(0xFF280B12),
-                Color(0xFF1C070D),
-                Color(0xFF140509),
+                Color(0xFF4D2027),
+                Color(0xFF38161B),
+                Color(0xFF260D11),
                 CyberLaserRed
             )
             TileType.EXIT_PORTAL -> Quad(
-                Color(0xFF0F3B40),
-                Color(0xFF092529),
-                Color(0xFF06181A),
+                Color(0xFF207582),
+                Color(0xFF175761),
+                Color(0xFF103E45),
                 CyberCyanAccent
             )
             TileType.TERMINAL -> Quad(
-                Color(0xFF263A1D),
-                Color(0xFF1C2B15),
-                Color(0xFF141F10),
+                Color(0xFF456333),
+                Color(0xFF354D26),
+                Color(0xFF25381A),
                 CyberAmberWarning
             )
             TileType.POWER_CORE -> Quad(
-                Color(0xFF0C3023),
-                Color(0xFF082319),
-                Color(0xFF051711),
-                CyberMintLight
+                Color(0xFF258567),
+                Color(0xFF1C6B52),
+                Color(0xFF14523E),
+                Color(0xFF70FFCC)
             )
             TileType.FLOOR -> Quad(
-                Color(0xFF091E16),
-                Color(0xFF061510),
-                Color(0xFF040E0A),
-                Color(0xFF1A4737)
+                Color(0xFF1E6952),
+                Color(0xFF165240),
+                Color(0xFF103E30),
+                Color(0xFF38EFAB)
             )
             else -> Quad(
-                Color(0xFF091E16),
-                Color(0xFF061510),
-                Color(0xFF040E0A),
-                Color(0xFF1A4737)
+                Color(0xFF1E6952),
+                Color(0xFF165240),
+                Color(0xFF103E30),
+                Color(0xFF38EFAB)
             )
         }
 

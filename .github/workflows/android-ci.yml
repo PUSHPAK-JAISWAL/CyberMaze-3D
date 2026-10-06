@@ -1,0 +1,33 @@
+name: Android CI Test Suite
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Robolectric & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Deterministic Keystore
+        run: |
+          echo "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" | base64 -d > debug.keystore
+
+      - name: Run Robolectric & Unit Tests
+        run: gradle :app:testDebugUnitTest
+
+      - name: Verify Android Build Compilation
+        run: gradle :app:assembleDebug

@@ -8,6 +8,12 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+val rawRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 12
+val major = 1 + (rawRun / 100)
+val minor = (rawRun / 10) % 10
+val patch = rawRun % 10
+val computedVersionName = "$major.$minor.$patch"
+
 android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -16,8 +22,8 @@ android {
     applicationId = "com.aistudio.cybermaze.kxpztr"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = (major * 10000) + (minor * 100) + patch
+    versionName = computedVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
