@@ -21,11 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,14 +52,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.entities.GameSettingsEntity
+import com.example.data.local.entities.LevelEntity
+import com.example.data.model.CardItem
+import com.example.data.model.MazeBuilding
+import com.example.data.model.RaidBattleState
+import com.example.data.model.RadarNode
+import com.example.data.sensor.MotionTelemetry
 import com.example.ui.AppNavTab
 import com.example.ui.MainViewModel
 import com.example.ui.components.UpdateDialog
-import com.example.ui.screens.GameScreen
-import com.example.ui.screens.HolodeckScreen
-import com.example.ui.screens.MotionLabScreen
+import com.example.ui.screens.MazeBaseScreen
+import com.example.ui.screens.OutdoorRadarScreen
+import com.example.ui.screens.RaidArenaScreen
 import com.example.ui.screens.SettingsScreen
-import com.example.update.UpdateState
+import com.example.ui.screens.TroopsDeckScreen
 import com.example.ui.theme.CyberBackgroundDark
 import com.example.ui.theme.CyberCardBorder
 import com.example.ui.theme.CyberCyanAccent
@@ -89,16 +97,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CyberMazeApp(viewModel: MainViewModel) {
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
-    val gameState by viewModel.gameState.collectAsStateWithLifecycle()
+    val raidState by viewModel.raidBattleState.collectAsStateWithLifecycle()
+    val playerBase by viewModel.playerBase.collectAsStateWithLifecycle()
+    val cards by viewModel.cards.collectAsStateWithLifecycle()
+    val radarNodes by viewModel.radarNodes.collectAsStateWithLifecycle()
+    val userBits by viewModel.userBits.collectAsStateWithLifecycle()
+    val userNanites by viewModel.userNanites.collectAsStateWithLifecycle()
+    val trophies by viewModel.trophies.collectAsStateWithLifecycle()
     val telemetry by viewModel.motionTracker.telemetry.collectAsStateWithLifecycle()
     val savedLevels by viewModel.savedLevels.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val isGenerating by viewModel.isGeneratingLevel.collectAsStateWithLifecycle()
-    val genStatus by viewModel.generationMessage.collectAsStateWithLifecycle()
     val apiTestResult by viewModel.apiTestResult.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
-    // In-App Update Dialog
+    // In-App GitHub Update Dialog
     UpdateDialog(
         updateState = updateState,
         onStartDownload = { info -> viewModel.startUpdateDownload(info) },
@@ -107,9 +119,9 @@ fun CyberMazeApp(viewModel: MainViewModel) {
         onDismiss = { viewModel.dismissUpdateDialog() }
     )
 
-    // Back handler: pop sub-screens back to Arena
-    BackHandler(enabled = currentTab != AppNavTab.ARENA) {
-        viewModel.selectTab(AppNavTab.ARENA)
+    // Back handler: return to Raid tab
+    BackHandler(enabled = currentTab != AppNavTab.RAID) {
+        viewModel.selectTab(AppNavTab.RAID)
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -133,51 +145,67 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                     ) {
                         Text("3D", color = Color(0xFF003822), fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     NavigationRailItem(
-                        selected = currentTab == AppNavTab.ARENA,
-                        onClick = { viewModel.selectTab(AppNavTab.ARENA) },
-                        icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Arena") },
-                        label = { Text("Arena") },
+                        selected = currentTab == AppNavTab.RAID,
+                        onClick = { viewModel.selectTab(AppNavTab.RAID) },
+                        icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Raid") },
+                        label = { Text("Raid") },
                         colors = NavigationRailItemDefaults.colors(
                             selectedIconColor = Color(0xFF003822),
                             selectedTextColor = CyberMintLight,
                             indicatorColor = CyberMintPrimary
-                        )
+                        ),
+                        modifier = Modifier.testTag("rail_raid")
                     )
                     NavigationRailItem(
-                        selected = currentTab == AppNavTab.MOTION_LAB,
-                        onClick = { viewModel.selectTab(AppNavTab.MOTION_LAB) },
-                        icon = { Icon(Icons.Default.Sensors, contentDescription = "Motion") },
-                        label = { Text("Motion") },
+                        selected = currentTab == AppNavTab.MAZE,
+                        onClick = { viewModel.selectTab(AppNavTab.MAZE) },
+                        icon = { Icon(Icons.Default.Shield, contentDescription = "My Maze") },
+                        label = { Text("Base") },
                         colors = NavigationRailItemDefaults.colors(
                             selectedIconColor = Color(0xFF003822),
                             selectedTextColor = CyberMintLight,
                             indicatorColor = CyberMintPrimary
-                        )
+                        ),
+                        modifier = Modifier.testTag("rail_maze")
                     )
                     NavigationRailItem(
-                        selected = currentTab == AppNavTab.HOLODECK,
-                        onClick = { viewModel.selectTab(AppNavTab.HOLODECK) },
-                        icon = { Icon(Icons.Default.ViewInAr, contentDescription = "Holodeck") },
-                        label = { Text("Levels") },
+                        selected = currentTab == AppNavTab.DECK,
+                        onClick = { viewModel.selectTab(AppNavTab.DECK) },
+                        icon = { Icon(Icons.Default.Bolt, contentDescription = "Deck") },
+                        label = { Text("Deck") },
                         colors = NavigationRailItemDefaults.colors(
                             selectedIconColor = Color(0xFF003822),
                             selectedTextColor = CyberMintLight,
                             indicatorColor = CyberMintPrimary
-                        )
+                        ),
+                        modifier = Modifier.testTag("rail_deck")
+                    )
+                    NavigationRailItem(
+                        selected = currentTab == AppNavTab.OUTDOOR,
+                        onClick = { viewModel.selectTab(AppNavTab.OUTDOOR) },
+                        icon = { Icon(Icons.Default.Explore, contentDescription = "Radar") },
+                        label = { Text("Radar") },
+                        colors = NavigationRailItemDefaults.colors(
+                            selectedIconColor = Color(0xFF003822),
+                            selectedTextColor = CyberMintLight,
+                            indicatorColor = CyberMintPrimary
+                        ),
+                        modifier = Modifier.testTag("rail_radar")
                     )
                     NavigationRailItem(
                         selected = currentTab == AppNavTab.SETTINGS,
                         onClick = { viewModel.selectTab(AppNavTab.SETTINGS) },
                         icon = { Icon(Icons.Default.Tune, contentDescription = "Settings") },
-                        label = { Text("BYOK") },
+                        label = { Text("Settings") },
                         colors = NavigationRailItemDefaults.colors(
                             selectedIconColor = Color(0xFF003822),
                             selectedTextColor = CyberMintLight,
                             indicatorColor = CyberMintPrimary
-                        )
+                        ),
+                        modifier = Modifier.testTag("rail_settings")
                     )
                 }
 
@@ -185,12 +213,16 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                     ScreenContent(
                         currentTab = currentTab,
                         viewModel = viewModel,
-                        gameState = gameState,
+                        raidState = raidState,
+                        playerBase = playerBase,
+                        cards = cards,
+                        radarNodes = radarNodes,
+                        userBits = userBits,
+                        userNanites = userNanites,
+                        trophies = trophies,
                         telemetry = telemetry,
                         savedLevels = savedLevels,
                         settings = settings,
-                        isGenerating = isGenerating,
-                        genStatus = genStatus,
                         apiTestResult = apiTestResult
                     )
                 }
@@ -213,7 +245,7 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                                 Text(
                                     text = "CYBERMAZE 3D",
                                     color = TextPrimaryDark,
-                                    fontSize = 17.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                     letterSpacing = 1.sp
@@ -221,7 +253,7 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                             }
                         },
                         actions = {
-                            // Live sensor indicator badge
+                            // Currency & Trophies Pill
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
@@ -230,31 +262,24 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Sensors,
-                                        contentDescription = null,
-                                        tint = if (telemetry.isTracking) CyberMintPrimary else TextMutedDark,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "${telemetry.stepCount}p • +${String.format("%.1f", telemetry.elevationGainMeters)}m",
+                                        text = "$userBits ⚡ • $trophies 🏆",
                                         color = CyberMintLight,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            if (currentTab == AppNavTab.ARENA) {
+                            if (currentTab == AppNavTab.RAID) {
                                 IconButton(
-                                    onClick = { viewModel.restartCurrentLevel() },
-                                    modifier = Modifier.testTag("appbar_restart_level")
+                                    onClick = { viewModel.startRaid(1) },
+                                    modifier = Modifier.testTag("appbar_restart_raid")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Restart Level",
+                                        contentDescription = "Restart Raid",
                                         tint = CyberMintLight
                                     )
                                 }
@@ -276,10 +301,10 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                             .testTag("main_bottom_nav")
                     ) {
                         NavigationBarItem(
-                            selected = currentTab == AppNavTab.ARENA,
-                            onClick = { viewModel.selectTab(AppNavTab.ARENA) },
-                            icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Arena") },
-                            label = { Text("Arena", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                            selected = currentTab == AppNavTab.RAID,
+                            onClick = { viewModel.selectTab(AppNavTab.RAID) },
+                            icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Raid") },
+                            label = { Text("Raid", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color(0xFF003822),
                                 selectedTextColor = CyberMintLight,
@@ -287,13 +312,13 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                                 unselectedTextColor = TextSecondaryDark,
                                 indicatorColor = CyberMintPrimary
                             ),
-                            modifier = Modifier.testTag("tab_arena")
+                            modifier = Modifier.testTag("tab_raid")
                         )
                         NavigationBarItem(
-                            selected = currentTab == AppNavTab.MOTION_LAB,
-                            onClick = { viewModel.selectTab(AppNavTab.MOTION_LAB) },
-                            icon = { Icon(Icons.Default.Sensors, contentDescription = "Motion") },
-                            label = { Text("Motion", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                            selected = currentTab == AppNavTab.MAZE,
+                            onClick = { viewModel.selectTab(AppNavTab.MAZE) },
+                            icon = { Icon(Icons.Default.Shield, contentDescription = "My Maze") },
+                            label = { Text("Base", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color(0xFF003822),
                                 selectedTextColor = CyberMintLight,
@@ -301,13 +326,13 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                                 unselectedTextColor = TextSecondaryDark,
                                 indicatorColor = CyberMintPrimary
                             ),
-                            modifier = Modifier.testTag("tab_motion")
+                            modifier = Modifier.testTag("tab_maze")
                         )
                         NavigationBarItem(
-                            selected = currentTab == AppNavTab.HOLODECK,
-                            onClick = { viewModel.selectTab(AppNavTab.HOLODECK) },
-                            icon = { Icon(Icons.Default.ViewInAr, contentDescription = "Holodeck") },
-                            label = { Text("Levels", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                            selected = currentTab == AppNavTab.DECK,
+                            onClick = { viewModel.selectTab(AppNavTab.DECK) },
+                            icon = { Icon(Icons.Default.Bolt, contentDescription = "Deck") },
+                            label = { Text("Deck", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color(0xFF003822),
                                 selectedTextColor = CyberMintLight,
@@ -315,13 +340,27 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                                 unselectedTextColor = TextSecondaryDark,
                                 indicatorColor = CyberMintPrimary
                             ),
-                            modifier = Modifier.testTag("tab_holodeck")
+                            modifier = Modifier.testTag("tab_deck")
+                        )
+                        NavigationBarItem(
+                            selected = currentTab == AppNavTab.OUTDOOR,
+                            onClick = { viewModel.selectTab(AppNavTab.OUTDOOR) },
+                            icon = { Icon(Icons.Default.Explore, contentDescription = "Radar") },
+                            label = { Text("Radar", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFF003822),
+                                selectedTextColor = CyberMintLight,
+                                unselectedIconColor = TextSecondaryDark,
+                                unselectedTextColor = TextSecondaryDark,
+                                indicatorColor = CyberMintPrimary
+                            ),
+                            modifier = Modifier.testTag("tab_radar")
                         )
                         NavigationBarItem(
                             selected = currentTab == AppNavTab.SETTINGS,
                             onClick = { viewModel.selectTab(AppNavTab.SETTINGS) },
                             icon = { Icon(Icons.Default.Tune, contentDescription = "Settings") },
-                            label = { Text("BYOK", fontSize = 11.sp, fontFamily = FontFamily.Monospace) },
+                            label = { Text("Settings", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color(0xFF003822),
                                 selectedTextColor = CyberMintLight,
@@ -342,12 +381,16 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                     ScreenContent(
                         currentTab = currentTab,
                         viewModel = viewModel,
-                        gameState = gameState,
+                        raidState = raidState,
+                        playerBase = playerBase,
+                        cards = cards,
+                        radarNodes = radarNodes,
+                        userBits = userBits,
+                        userNanites = userNanites,
+                        trophies = trophies,
                         telemetry = telemetry,
                         savedLevels = savedLevels,
                         settings = settings,
-                        isGenerating = isGenerating,
-                        genStatus = genStatus,
                         apiTestResult = apiTestResult
                     )
                 }
@@ -360,55 +403,55 @@ fun CyberMazeApp(viewModel: MainViewModel) {
 private fun ScreenContent(
     currentTab: AppNavTab,
     viewModel: MainViewModel,
-    gameState: com.example.game.engine.GamePlayState,
-    telemetry: com.example.data.sensor.MotionTelemetry,
-    savedLevels: List<com.example.data.local.entities.LevelEntity>,
-    settings: com.example.data.local.entities.GameSettingsEntity,
-    isGenerating: Boolean,
-    genStatus: String,
+    raidState: RaidBattleState,
+    playerBase: List<MazeBuilding>,
+    cards: List<CardItem>,
+    radarNodes: List<RadarNode>,
+    userBits: Int,
+    userNanites: Int,
+    trophies: Int,
+    telemetry: MotionTelemetry,
+    savedLevels: List<LevelEntity>,
+    settings: GameSettingsEntity,
     apiTestResult: String?
 ) {
     when (currentTab) {
-        AppNavTab.ARENA -> {
-            GameScreen(
-                state = gameState,
-                onMove = { dir -> viewModel.movePlayer(dir) },
-                onStepTowardTile = { x, y -> viewModel.stepTowardAdjacentTile(x, y) },
-                onJumpVault = { viewModel.jumpVault() },
-                onEmpBlast = { viewModel.triggerEmpBlast() },
-                onCloak = { viewModel.activateCloak() },
-                onOpenCipher = { viewModel.openTerminalCipher() },
-                onSolveCipher = { viewModel.solveCipherSuccess() },
-                onCloseCipher = { viewModel.closeCipherModal() },
-                onRadarPing = { viewModel.triggerRadarPing() },
-                onRotateCamera = { delta -> viewModel.rotateCamera(delta) },
-                onSetCameraPreset = { pitch, yaw -> viewModel.setCameraPreset(pitch, yaw) },
-                onSetCameraZoom = { zoom -> viewModel.setCameraZoom(zoom) },
-                onRestart = { viewModel.restartCurrentLevel() },
-                onOpenMotionLab = { viewModel.selectTab(AppNavTab.MOTION_LAB) }
+        AppNavTab.RAID -> {
+            RaidArenaScreen(
+                state = raidState,
+                onDeployTroop = { type, x, y -> viewModel.deployTroop(type, x, y) },
+                onCastSpell = { spell, x, y -> viewModel.castSpell(spell, x, y) },
+                onStartRaidSector = { sector -> viewModel.startRaid(sector) },
+                onOpenBaseEditor = { viewModel.selectTab(AppNavTab.MAZE) }
             )
         }
-        AppNavTab.MOTION_LAB -> {
-            MotionLabScreen(
+        AppNavTab.MAZE -> {
+            MazeBaseScreen(
+                buildings = playerBase,
+                userBits = userBits,
+                onPlaceBuilding = { type, x, y -> viewModel.placeBuilding(type, x, y) },
+                onRemoveBuilding = { x, y -> viewModel.removeBuilding(x, y) },
+                onSimulateDefense = { viewModel.startDefenseTest() }
+            )
+        }
+        AppNavTab.DECK -> {
+            TroopsDeckScreen(
+                cards = cards,
+                userBits = userBits,
+                userNanites = userNanites,
+                trophies = trophies,
+                onUpgradeCard = { cardId -> viewModel.upgradeCard(cardId) },
+                onStartRaid = { viewModel.selectTab(AppNavTab.RAID) }
+            )
+        }
+        AppNavTab.OUTDOOR -> {
+            OutdoorRadarScreen(
                 telemetry = telemetry,
                 motionTracker = viewModel.motionTracker,
-                isGenerating = isGenerating,
-                generationStatus = genStatus,
-                onSynthesizeLevel = { theme, diff ->
-                    viewModel.generateLevelFromSensors(theme, diff)
-                }
-            )
-        }
-        AppNavTab.HOLODECK -> {
-            HolodeckScreen(
-                savedLevels = savedLevels,
-                isGenerating = isGenerating,
-                generationStatus = genStatus,
-                onLoadLevel = { lvl -> viewModel.loadSavedLevel(lvl) },
-                onDeleteLevel = { id -> viewModel.deleteLevel(id) },
-                onGenerateCustomLevel = { theme, diff ->
-                    viewModel.generateLevelFromSensors(theme, diff)
-                }
+                radarNodes = radarNodes,
+                onClaimNode = { nodeId -> viewModel.claimRadarNode(nodeId) },
+                onTriggerReconDrone = { viewModel.triggerReconDrone() },
+                onStartRaid = { viewModel.selectTab(AppNavTab.RAID) }
             )
         }
         AppNavTab.SETTINGS -> {
@@ -416,12 +459,12 @@ private fun ScreenContent(
                 settings = settings,
                 apiTestResult = apiTestResult,
                 cachedLevelsCount = savedLevels.size,
-                onSaveSettings = { newS -> viewModel.updateSettings(newS) },
+                onSaveSettings = { newS -> viewModel.saveSettings(newS) },
                 onTestApiConnection = { prov, key, mod, url ->
                     viewModel.testApiConnection(prov, key, mod, url)
                 },
                 onClearTestResult = { viewModel.clearApiTestResult() },
-                onClearMovementLogs = { viewModel.clearMovementHistory() },
+                onClearMovementLogs = { viewModel.clearMovementLogs() },
                 onCheckForUpdates = { viewModel.checkForUpdates(silent = false) }
             )
         }

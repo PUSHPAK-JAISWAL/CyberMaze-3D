@@ -13,11 +13,16 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.entities.GameSettingsEntity
 import com.example.data.local.entities.LevelEntity
 import com.example.data.local.entities.MovementLogEntity
-import com.example.data.model.LevelData
+import com.example.data.model.CardItem
+import com.example.data.model.DefenseType
+import com.example.data.model.MazeBuilding
+import com.example.data.model.RaidBattleState
+import com.example.data.model.RadarNode
+import com.example.data.model.TacticalSpell
+import com.example.data.model.TroopType
 import com.example.data.repository.GameRepository
 import com.example.data.sensor.MotionTracker
-import com.example.game.engine.Direction
-import com.example.game.engine.GameSession
+import com.example.game.engine.SiegeEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,13 +32,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 enum class AppNavTab {
-    ARENA,      // 3D Game Play
-    MOTION_LAB, // Sensor telemetry & movement tracker
-    HOLODECK,   // Level archive & AI generator
-    SETTINGS    // BYOK API Keys & configurations
+    RAID,       // Syndicate Raid Infiltration Arena
+    MAZE,       // Player's CyberMaze Fortress Defense Builder
+    DECK,       // Battle Squad Cards & Defense Upgrades
+    OUTDOOR,    // Real-World Motion Sensor Radar & Geo-Vaults
+    SETTINGS    // BYOK API Keys & App Updates
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -52,7 +57,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Navigation Tab
-    private val _currentTab = MutableStateFlow(AppNavTab.ARENA)
+    private val _currentTab = MutableStateFlow(AppNavTab.RAID)
     val currentTab: StateFlow<AppNavTab> = _currentTab.asStateFlow()
 
     // Room DB Flows
@@ -65,33 +70,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _settings = MutableStateFlow(GameSettingsEntity())
     val settings: StateFlow<GameSettingsEntity> = _settings.asStateFlow()
 
-    // Active Game Session
-    private var gameSession: GameSession = GameSession(
-        aiService.generateProceduralLevel(
-            motionTracker.telemetry.value,
-            "Normal",
-            "Initial Boot Sequence: Neural Arena initialized."
+    // 1. Tactical Siege & Defense Engine
+    private val siegeEngine = SiegeEngine()
+    val raidBattleState: StateFlow<RaidBattleState> = siegeEngine.raidState
+    val playerBase: StateFlow<List<MazeBuilding>> = siegeEngine.playerBase
+
+    // 2. Player Currency & Trophies
+    private val _userBits = MutableStateFlow(850)
+    val userBits: StateFlow<Int> = _userBits.asStateFlow()
+
+    private val _userNanites = MutableStateFlow(25)
+    val userNanites: StateFlow<Int> = _userNanites.asStateFlow()
+
+    private val _trophies = MutableStateFlow(120)
+    val trophies: StateFlow<Int> = _trophies.asStateFlow()
+
+    // 3. Card Deck (Troops & Defenses)
+    private val _cards = MutableStateFlow(
+        listOf(
+            CardItem("c1", "Byte Brawler", isTroop = true, troopType = TroopType.BYTE_BRAWLER, level = 1, upgradeCostBits = 120),
+            CardItem("c2", "Glitch Sprinter", isTroop = true, troopType = TroopType.GLITCH_SPRINTER, level = 1, upgradeCostBits = 100),
+            CardItem("c3", "EMP Specialist", isTroop = true, troopType = TroopType.EMP_HACKER, level = 1, upgradeCostBits = 180),
+            CardItem("c4", "Phantom Drone", isTroop = true, troopType = TroopType.PHANTOM_DRONE, level = 1, upgradeCostBits = 250),
+            CardItem("d1", "Pulse Laser Turret", isTroop = false, defenseType = DefenseType.LASER_TURRET, level = 1, upgradeCostBits = 150),
+            CardItem("d2", "Tesla Shock Pylon", isTroop = false, defenseType = DefenseType.TESLA_PYLON, level = 1, upgradeCostBits = 200),
+            CardItem("d3", "Plasma Mortar", isTroop = false, defenseType = DefenseType.PLASMA_MORTAR, level = 1, upgradeCostBits = 280)
         )
     )
-    val gameState = MutableStateFlow(gameSession.state.value)
+    val cards: StateFlow<List<CardItem>> = _cards.asStateFlow()
 
-    // Generation State
+    // 4. Outdoor Radar Nodes
+    private val _radarNodes = MutableStateFlow(
+        listOf(
+            RadarNode("n1", "Scout Signal Cache", distanceMeters = 80, requiredSteps = 100, bitsReward = 200, nanitesReward = 5, blueprintReward = "+10 Brawler Cards", angleDegrees = 45f),
+            RadarNode("n2", "High-Altitude Relay", distanceMeters = 180, requiredSteps = 250, bitsReward = 450, nanitesReward = 10, blueprintReward = "+1 Orbital Strike", angleDegrees = 135f),
+            RadarNode("n3", "Darknet Data Vault", distanceMeters = 350, requiredSteps = 500, bitsReward = 800, nanitesReward = 20, blueprintReward = "+15 Phantom Cards", angleDegrees = 220f),
+            RadarNode("n4", "Apex Quantum Core", distanceMeters = 600, requiredSteps = 1000, bitsReward = 2000, nanitesReward = 50, blueprintReward = "Legendary Apex Blueprint", angleDegrees = 310f)
+        )
+    )
+    val radarNodes: StateFlow<List<RadarNode>> = _radarNodes.asStateFlow()
+
+    // Generation State & Feedback
     private val _isGeneratingLevel = MutableStateFlow(false)
     val isGeneratingLevel: StateFlow<Boolean> = _isGeneratingLevel.asStateFlow()
 
     private val _generationMessage = MutableStateFlow("")
     val generationMessage: StateFlow<String> = _generationMessage.asStateFlow()
 
-    // Test connection feedback
     private val _apiTestResult = MutableStateFlow<String?>(null)
     val apiTestResult: StateFlow<String?> = _apiTestResult.asStateFlow()
 
-    // In-App GitHub Update Manager
+    // GitHub In-App Update Manager
     val updateManager = com.example.update.UpdateManager(application, viewModelScope)
     val updateState = updateManager.updateState
 
-    private var gameLoopJob: Job? = null
-    private var enemyAiLoopJob: Job? = null
+    private var battleLoopJob: Job? = null
+    private var lastRecordedSteps = 0
 
     init {
         // Load settings from Room
@@ -103,13 +137,196 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Start motion tracking by default
         motionTracker.startTracking()
 
-        // Start game tick loop
-        startGameLoops()
+        // Start initial sector raid
+        startRaid(1)
+
+        // Start 60 FPS battle simulation loop
+        startBattleSimulationLoop()
+
+        // Monitor outdoor steps to update radar nodes and currency
+        monitorOutdoorMovement()
 
         // Check for updates silently on launch
         updateManager.checkForUpdates(silent = true)
     }
 
+    private fun startBattleSimulationLoop() {
+        battleLoopJob?.cancel()
+        battleLoopJob = viewModelScope.launch {
+            var lastNanos = System.nanoTime()
+            while (isActive) {
+                delay(16) // ~60 FPS
+                val now = System.nanoTime()
+                val dt = ((now - lastNanos) / 1_000_000_000f).coerceIn(0.005f, 0.05f)
+                lastNanos = now
+
+                siegeEngine.tickBattleFrame(
+                    dt = dt,
+                    onStructureDestroyed = { triggerHaptic(longVibe = false) },
+                    onBattleEnd = { victory ->
+                        triggerHaptic(longVibe = true)
+                        if (victory) {
+                            val st = siegeEngine.raidState.value
+                            _userBits.value += st.bitsLooted
+                            _trophies.value += st.trophiesWon
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun monitorOutdoorMovement() {
+        viewModelScope.launch {
+            motionTracker.telemetry.collect { telem ->
+                val currentSteps = telem.stepCount
+                if (currentSteps > lastRecordedSteps) {
+                    val stepDelta = currentSteps - lastRecordedSteps
+                    lastRecordedSteps = currentSteps
+
+                    // Walking awards Bits
+                    _userBits.value += (stepDelta * 2)
+
+                    // Auto unlock nodes when step requirement is met
+                    _radarNodes.value = _radarNodes.value.map { node ->
+                        if (!node.isUnlocked && currentSteps >= node.requiredSteps) {
+                            triggerHaptic(longVibe = true)
+                            node.copy(isUnlocked = true)
+                        } else node
+                    }
+                }
+            }
+        }
+    }
+
+    fun selectTab(tab: AppNavTab) {
+        _currentTab.value = tab
+    }
+
+    // Raid Actions
+    fun deployTroop(type: TroopType, x: Float, y: Float) {
+        siegeEngine.deployTroop(
+            type = type,
+            spawnX = x,
+            spawnY = y,
+            onDeployed = { triggerHaptic(longVibe = false) },
+            onFail = { /* feedback */ }
+        )
+    }
+
+    fun castSpell(spell: TacticalSpell, x: Float, y: Float) {
+        siegeEngine.castSpell(
+            spell = spell,
+            targetX = x,
+            targetY = y,
+            onCast = { triggerHaptic(longVibe = true) },
+            onFail = { /* feedback */ }
+        )
+    }
+
+    fun startRaid(sectorIndex: Int = 1) {
+        siegeEngine.startRaidSector(sectorIndex)
+        _currentTab.value = AppNavTab.RAID
+    }
+
+    fun startDefenseTest() {
+        siegeEngine.startDefenseTest()
+        _currentTab.value = AppNavTab.RAID
+    }
+
+    // Maze Base Builder Actions
+    fun placeBuilding(type: DefenseType, gridX: Int, gridY: Int) {
+        if (_userBits.value >= type.costBits) {
+            val placed = siegeEngine.placeBuildingOnBase(type, gridX, gridY)
+            if (placed) {
+                _userBits.value -= type.costBits
+                triggerHaptic(longVibe = false)
+            }
+        }
+    }
+
+    fun removeBuilding(gridX: Int, gridY: Int) {
+        val removed = siegeEngine.removeBuildingFromBase(gridX, gridY)
+        if (removed) {
+            _userBits.value += 15 // Refund salvage bits
+            triggerHaptic(longVibe = false)
+        }
+    }
+
+    // Card Upgrades
+    fun upgradeCard(cardId: String) {
+        val card = _cards.value.find { it.id == cardId } ?: return
+        if (_userBits.value >= card.upgradeCostBits) {
+            _userBits.value -= card.upgradeCostBits
+            _cards.value = _cards.value.map {
+                if (it.id == cardId) {
+                    it.copy(
+                        level = it.level + 1,
+                        upgradeCostBits = (it.upgradeCostBits * 1.75f).toInt()
+                    )
+                } else it
+            }
+            triggerHaptic(longVibe = true)
+        }
+    }
+
+    // Outdoor Radar Actions
+    fun claimRadarNode(nodeId: String) {
+        val node = _radarNodes.value.find { it.id == nodeId } ?: return
+        if (!node.isClaimed) {
+            _userBits.value += node.bitsReward
+            _userNanites.value += node.nanitesReward
+            _radarNodes.value = _radarNodes.value.map {
+                if (it.id == nodeId) it.copy(isClaimed = true) else it
+            }
+            triggerHaptic(longVibe = true)
+        }
+    }
+
+    // Virtual Recon Drone (Indoor / emulator testing)
+    fun triggerReconDrone() {
+        _userBits.value += 150
+        _userNanites.value += 3
+        // Also unlock next available locked node
+        val nextLocked = _radarNodes.value.find { !it.isUnlocked }
+        if (nextLocked != null) {
+            _radarNodes.value = _radarNodes.value.map {
+                if (it.id == nextLocked.id) it.copy(isUnlocked = true) else it
+            }
+        }
+        triggerHaptic(longVibe = false)
+    }
+
+    // Settings & BYOK
+    fun saveSettings(newSettings: GameSettingsEntity) {
+        viewModelScope.launch {
+            _settings.value = newSettings
+            repository.saveSettings(newSettings)
+            triggerHaptic(longVibe = false)
+        }
+    }
+
+    fun testApiConnection(provider: String, key: String, model: String, baseUrl: String) {
+        viewModelScope.launch {
+            _apiTestResult.value = "Testing link to $provider [$model]..."
+            val result = aiService.testConnection(provider, key, model, baseUrl)
+            _apiTestResult.value = result
+            triggerHaptic(longVibe = result.startsWith("Success"))
+        }
+    }
+
+    fun clearApiTestResult() {
+        _apiTestResult.value = null
+    }
+
+    fun clearMovementLogs() {
+        viewModelScope.launch {
+            repository.clearMovementLogs()
+            triggerHaptic(longVibe = false)
+        }
+    }
+
+    // GitHub Updates
     fun checkForUpdates(silent: Boolean = false) {
         updateManager.checkForUpdates(silent)
     }
@@ -130,374 +347,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateManager.dismissUpdate()
     }
 
-    fun selectTab(tab: AppNavTab) {
-        _currentTab.value = tab
-    }
-
-    private fun startGameLoops() {
-        gameLoopJob?.cancel()
-        gameLoopJob = viewModelScope.launch {
-            while (isActive) {
-                delay(1000)
-                gameSession.tickTimer()
-                gameState.value = gameSession.state.value
-
-                // If won, save score to Room
-                val current = gameState.value
-                if (current.isVictory && current.currentLevel.id > 0) {
-                    repository.markLevelCleared(current.currentLevel.id, current.elapsedSeconds, 3)
-                }
-            }
-        }
-
-        // Dynamic Enemy Tactical Comms (runs periodically for radio chatter & LLM telemetry)
-        enemyAiLoopJob?.cancel()
-        enemyAiLoopJob = viewModelScope.launch {
-            var turn = 0
-            while (isActive) {
-                delay(5000)
-                val current = gameState.value
-                if (_settings.value.dynamicAiEnemyEnabled && !current.isGameOver && !current.isVictory && current.currentLevel.enemies.isNotEmpty()) {
-                    turn++
-                    try {
-                        val leadEnemy = current.currentLevel.enemies.first()
-                        val (_, dialogue) = aiService.queryEnemyTacticalBehavior(
-                            _settings.value,
-                            leadEnemy,
-                            current.playerPos,
-                            turn
-                        )
-                        val updated = current.currentLevel.enemies.mapIndexed { i, e ->
-                            if (i == 0) e.copy(lastActionText = dialogue) else e
-                        }
-                        gameSession.updateEnemyPositions(updated) {}
-                        gameState.value = gameSession.state.value
-                    } catch (_: Exception) {
-                        // Keep current positions smoothly
-                    }
-                }
-            }
-        }
-    }
-
-    fun stepTowardAdjacentTile(targetX: Int, targetY: Int) {
-        gameSession.stepTowardAdjacentTile(
-            targetX = targetX,
-            targetY = targetY,
-            onStepSuccess = { triggerHaptic(longVibe = false) },
-            onEncounter = { triggerHaptic(longVibe = true) }
-        )
-        gameState.value = gameSession.state.value
-    }
-
-    fun movePlayer(direction: Direction) {
-        gameSession.movePlayer(
-            direction = direction,
-            onStepSuccess = { triggerHaptic(longVibe = false) },
-            onEncounter = { triggerHaptic(longVibe = true) }
-        )
-        gameState.value = gameSession.state.value
-    }
-
-    fun jumpVault() {
-        gameSession.jumpVault()
-        gameState.value = gameSession.state.value
-        triggerHaptic(longVibe = false)
-    }
-
-    fun triggerEmpBlast() {
-        gameSession.triggerEmpBlast {
-            triggerHaptic(longVibe = true)
-        }
-        gameState.value = gameSession.state.value
-    }
-
-    fun activateCloak() {
-        gameSession.activateCloak()
-        gameState.value = gameSession.state.value
-        triggerHaptic(longVibe = false)
-    }
-
-    fun openTerminalCipher() {
-        gameSession.openTerminalCipher()
-        gameState.value = gameSession.state.value
-    }
-
-    fun solveCipherSuccess() {
-        gameSession.solveCipherSuccess()
-        gameState.value = gameSession.state.value
-        triggerHaptic(longVibe = true)
-    }
-
-    fun closeCipherModal() {
-        gameSession.closeCipherModal()
-        gameState.value = gameSession.state.value
-    }
-
-    fun triggerRadarPing() {
-        gameSession.triggerRadarPing()
-        gameState.value = gameSession.state.value
-        triggerHaptic(longVibe = false)
-    }
-
-    fun rotateCamera(deltaDegrees: Float) {
-        gameSession.rotateCamera(deltaDegrees)
-        gameState.value = gameSession.state.value
-    }
-
-    fun setCameraPreset(pitchRatio: Float, yaw: Float) {
-        gameSession.setCameraPreset(pitchRatio, yaw)
-        gameState.value = gameSession.state.value
-    }
-
-    fun setCameraZoom(zoom: Float) {
-        gameSession.setCameraZoom(zoom)
-        gameState.value = gameSession.state.value
-    }
-
-    fun restartCurrentLevel() {
-        gameSession.resetLevel()
-        gameState.value = gameSession.state.value
-    }
-
-    fun generateLevelFromSensors(themeTitle: String, difficulty: String) {
-        viewModelScope.launch {
-            _isGeneratingLevel.value = true
-            _generationMessage.value = "Translating mobile sensor vectors (elevation + depression + steps)..."
-
-            val telemetry = motionTracker.telemetry.value
-
-            // 1. Log motion session to Room
-            val logEntity = MovementLogEntity(
-                durationSeconds = telemetry.durationSeconds,
-                steps = telemetry.stepCount,
-                elevationGainMeters = telemetry.elevationGainMeters,
-                depressionMeters = telemetry.depressionMeters,
-                forwardDistanceMeters = telemetry.forwardDistanceMeters,
-                lateralDistanceMeters = telemetry.lateralDistanceMeters,
-                totalDistanceMeters = telemetry.totalDistanceMeters
-            )
-            repository.logMovementSession(logEntity)
-
-            delay(600)
-            _generationMessage.value = if (_settings.value.apiKey.isNotBlank()) {
-                "Invoking LLM (${_settings.value.apiProvider} / ${_settings.value.modelId}) with movement data..."
-            } else {
-                "Synthesizing 3D cyber labyrinth via neural procedural engine..."
-            }
-
-            val result = aiService.generateLevelWithAiOrFallback(
-                settings = _settings.value,
-                telemetry = telemetry,
-                themeTitle = themeTitle,
-                difficulty = difficulty
-            )
-
-            result.onSuccess { generatedLevel ->
-                // Cache level into Room database
-                val json = serializeLevelToJson(generatedLevel)
-                val levelEntity = LevelEntity(
-                    title = generatedLevel.name,
-                    description = generatedLevel.description,
-                    levelJson = json,
-                    stepCountSource = telemetry.stepCount,
-                    elevationGainSource = telemetry.elevationGainMeters,
-                    depressionSource = telemetry.depressionMeters,
-                    distanceSourceMeters = telemetry.totalDistanceMeters,
-                    providerUsed = if (_settings.value.apiKey.isNotBlank()) _settings.value.apiProvider else "PROCEDURAL",
-                    modelUsed = if (_settings.value.apiKey.isNotBlank()) _settings.value.modelId else "Local Synthesizer",
-                    difficulty = difficulty
-                )
-                val savedId = repository.saveLevel(levelEntity)
-                val levelWithId = generatedLevel.copy(id = savedId)
-
-                // Load into game session
-                gameSession = GameSession(levelWithId)
-                gameState.value = gameSession.state.value
-                _currentTab.value = AppNavTab.ARENA
-                _generationMessage.value = "Level generation complete! Infiltrating sector..."
-                triggerHaptic(longVibe = false)
-            }.onFailure { err ->
-                _generationMessage.value = "Error: ${err.localizedMessage}. Using offline fallback."
-            }
-
-            delay(500)
-            _isGeneratingLevel.value = false
-        }
-    }
-
-    fun loadSavedLevel(entity: LevelEntity) {
-        val parsed = aiService.parseJsonToLevel(entity.levelJson, motionTracker.telemetry.value)
-        val levelWithId = parsed.copy(
-            id = entity.id,
-            name = entity.title,
-            description = entity.description
-        )
-        gameSession = GameSession(levelWithId)
-        gameState.value = gameSession.state.value
-        _currentTab.value = AppNavTab.ARENA
-    }
-
-    fun deleteLevel(id: Long) {
-        viewModelScope.launch {
-            repository.deleteLevel(id)
-        }
-    }
-
-    fun updateSettings(newSettings: GameSettingsEntity) {
-        _settings.value = newSettings
-        viewModelScope.launch {
-            repository.saveSettings(newSettings)
-        }
-    }
-
-    fun testApiConnection(provider: String, apiKey: String, model: String, customBaseUrl: String) {
-        viewModelScope.launch {
-            _apiTestResult.value = "Testing connection to $provider..."
-            val testSettings = GameSettingsEntity(
-                apiProvider = provider,
-                apiKey = apiKey,
-                modelId = model,
-                customBaseUrl = customBaseUrl
-            )
-            val telemetry = motionTracker.telemetry.value
-            try {
-                val res = aiService.generateLevelWithAiOrFallback(testSettings, telemetry, "Ping Test", "Normal")
-                if (res.isSuccess) {
-                    _apiTestResult.value = "Success! Model responded and generated sector: '${res.getOrNull()?.name}'"
-                } else {
-                    _apiTestResult.value = "Failed: ${res.exceptionOrNull()?.message}"
-                }
-            } catch (e: Exception) {
-                _apiTestResult.value = "Connection error: ${e.message}"
-            }
-        }
-    }
-
-    fun clearApiTestResult() {
-        _apiTestResult.value = null
-    }
-
-    fun clearMovementHistory() {
-        viewModelScope.launch {
-            repository.clearMovementLogs()
-            motionTracker.resetSession()
-        }
-    }
-
     private fun triggerHaptic(longVibe: Boolean) {
-        if (!_settings.value.hapticsEnabled || vibrator == null) return
+        if (!_settings.value.hapticsEnabled) return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val effect = if (longVibe) {
                     VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE)
                 } else {
-                    VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE)
+                    VibrationEffect.createOneShot(35, 180)
                 }
-                vibrator.vibrate(effect)
+                vibrator?.vibrate(effect)
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(if (longVibe) 120L else 35L)
+                vibrator?.vibrate(if (longVibe) 120 else 35)
             }
         } catch (_: Exception) {}
-    }
-
-    private fun serializeLevelToJson(level: LevelData): String {
-        val root = JSONObject()
-        root.put("levelName", level.name)
-        root.put("description", level.description)
-        root.put("gridSize", level.gridWidth)
-        root.put("aiBriefing", level.aiBriefing)
-
-        val elevArr = org.json.JSONArray()
-        val depArr = org.json.JSONArray()
-        val wallArr = org.json.JSONArray()
-        val coresArr = org.json.JSONArray()
-
-        level.tiles.forEach { t ->
-            if (t.z > 0) {
-                val o = JSONObject().apply {
-                    put("x", t.x)
-                    put("y", t.y)
-                    put("z", t.z)
-                }
-                elevArr.put(o)
-            }
-            if (t.type == com.example.data.model.TileType.DEPRESSION_PIT) {
-                val o = JSONObject().apply {
-                    put("x", t.x)
-                    put("y", t.y)
-                }
-                depArr.put(o)
-            }
-            if (t.type == com.example.data.model.TileType.WALL) {
-                val o = JSONObject().apply {
-                    put("x", t.x)
-                    put("y", t.y)
-                }
-                wallArr.put(o)
-            }
-            if (t.type == com.example.data.model.TileType.POWER_CORE) {
-                val o = JSONObject().apply {
-                    put("x", t.x)
-                    put("y", t.y)
-                    put("z", t.z)
-                }
-                coresArr.put(o)
-            }
-        }
-
-        root.put("elevatedCoords", elevArr)
-        root.put("depressionCoords", depArr)
-        root.put("wallCoords", wallArr)
-        root.put("powerCores", coresArr)
-
-        val spawnObj = JSONObject().apply {
-            put("x", level.playerSpawn.x)
-            put("y", level.playerSpawn.y)
-            put("z", level.playerSpawn.z)
-        }
-        root.put("playerSpawn", spawnObj)
-
-        val exitObj = JSONObject().apply {
-            put("x", level.exitPortal.x)
-            put("y", level.exitPortal.y)
-            put("z", level.exitPortal.z)
-        }
-        root.put("exitPortal", exitObj)
-
-        val enemiesArr = org.json.JSONArray()
-        level.enemies.forEach { e ->
-            val eo = JSONObject().apply {
-                put("id", e.id)
-                put("name", e.name)
-                put("type", e.type.name)
-                put("x", e.x)
-                put("y", e.y)
-                put("z", e.z)
-                put("aggression", e.aggression.toDouble())
-                put("behaviorDescription", e.behaviorDescription)
-                put("dialogue", e.lastActionText)
-            }
-            enemiesArr.put(eo)
-        }
-        root.put("enemies", enemiesArr)
-
-        val termsArr = org.json.JSONArray()
-        level.terminals.forEach { term ->
-            val to = JSONObject().apply {
-                put("id", term.id)
-                put("x", term.x)
-                put("y", term.y)
-                put("z", term.z)
-                put("requiredCores", term.requiredCores)
-                put("securityLevel", term.securityLevel)
-                put("puzzlePrompt", term.puzzlePrompt)
-            }
-            termsArr.put(to)
-        }
-        root.put("terminals", termsArr)
-
-        return root.toString()
     }
 }

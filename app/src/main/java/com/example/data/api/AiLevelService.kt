@@ -31,6 +31,46 @@ class AiLevelService {
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+    fun synthesizeSectorLevel(
+        settings: GameSettingsEntity,
+        telemetry: MotionTelemetry,
+        themeTitle: String = "Expedition Sector",
+        difficulty: String = "Normal"
+    ): LevelData {
+        return generateProceduralLevel(
+            telemetry,
+            difficulty,
+            "Expedition Sector: $themeTitle (Telemetry: ${telemetry.stepCount} steps, +${String.format("%.1f", telemetry.elevationGainMeters)}m climb)"
+        )
+    }
+
+    suspend fun testConnection(
+        provider: String,
+        apiKey: String,
+        modelName: String,
+        customBaseUrl: String
+    ): String = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            return@withContext "Error: API key is empty. Enter an API key or use local mode."
+        }
+        try {
+            val dummySettings = GameSettingsEntity(
+                apiProvider = provider,
+                apiKey = apiKey,
+                modelId = modelName,
+                customBaseUrl = customBaseUrl
+            )
+            val response = callLlmProvider(
+                settings = dummySettings,
+                systemPrompt = "Respond with 'CONNECTED' and nothing else.",
+                userPrompt = "Test ping."
+            )
+            "Success! Neural link verified: ${response.take(60).trim()}"
+        } catch (e: Exception) {
+            "Connection failed: ${e.message ?: "Unknown network error"}"
+        }
+    }
+
     suspend fun generateLevelWithAiOrFallback(
         settings: GameSettingsEntity,
         telemetry: MotionTelemetry,

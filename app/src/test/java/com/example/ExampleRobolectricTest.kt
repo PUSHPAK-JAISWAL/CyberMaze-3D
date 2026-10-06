@@ -2,12 +2,12 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.example.data.api.AiLevelService
-import com.example.data.model.TileType
-import com.example.data.sensor.MotionTelemetry
-import com.example.game.engine.Direction
-import com.example.game.engine.GameSession
+import com.example.data.model.DefenseType
+import com.example.data.model.TroopType
+import com.example.game.engine.SiegeEngine
+import com.example.update.VersionUtil
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,59 +27,71 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `procedural generation translates sensor elevation and depression`() {
-        val service = AiLevelService()
-        val telemetry = MotionTelemetry(
-            stepCount = 120,
-            elevationGainMeters = 8.5f,
-            depressionMeters = 2.4f,
-            totalDistanceMeters = 86f
-        )
-        val level = service.generateProceduralLevel(telemetry, "Normal")
+    fun `siege engine initializes player base with core server and walls`() {
+        val engine = SiegeEngine()
+        val base = engine.playerBase.value
 
-        assertNotNull(level)
-        assertTrue(level.tiles.isNotEmpty())
-        assertTrue("Level should contain elevation ramps from 8.5m climb", level.tiles.any { it.type == TileType.ELEVATION_RAMP || it.z > 0 })
-        assertTrue("Level should contain depression pits from 2.4m drop", level.tiles.any { it.type == TileType.DEPRESSION_PIT })
-        assertTrue("Level should have dynamic enemies", level.enemies.isNotEmpty())
+        assertTrue(base.isNotEmpty())
+        assertTrue("Base should have a Quantum Core Server", base.any { it.type == DefenseType.CORE_SERVER })
+        assertTrue("Base should have perimeter neon walls", base.any { it.type == DefenseType.NEON_WALL })
     }
 
     @Test
-    fun `game session handles player movement and collects cores`() {
-        val service = AiLevelService()
-        val telemetry = MotionTelemetry(stepCount = 50, elevationGainMeters = 2f)
-        val level = service.generateProceduralLevel(telemetry, "Normal")
-        val session = GameSession(level)
+    fun `siege engine allows placing and removing defense buildings`() {
+        val engine = SiegeEngine()
 
-        val initialPos = session.state.value.playerPos
-        session.movePlayer(Direction.NORTH, onStepSuccess = {}, onEncounter = {})
+        // Place a Laser Turret at (2, 3)
+        val placed = engine.placeBuildingOnBase(DefenseType.LASER_TURRET, 2, 3)
+        assertTrue(placed)
+        assertTrue(engine.playerBase.value.any { it.gridX == 2 && it.gridY == 3 && it.type == DefenseType.LASER_TURRET })
 
-        val stateAfter = session.state.value
-        assertTrue(stateAfter.movesCount >= 0)
+        // Remove it
+        val removed = engine.removeBuildingFromBase(2, 3)
+        assertTrue(removed)
+        assertFalse(engine.playerBase.value.any { it.gridX == 2 && it.gridY == 3 })
     }
 
     @Test
-    fun `main view model instantiates without error`() {
+    fun `siege engine handles raid battles and troop deployment`() {
+        val engine = SiegeEngine()
+        engine.startRaidSector(1)
+
+        val initial = engine.raidState.value
+        assertEquals("Syndicate Sector: Neon Alley", initial.sectorName)
+        assertTrue(initial.buildings.isNotEmpty())
+
+        // Deploy a Byte Brawler at edge
+        var deployed = false
+        engine.deployTroop(TroopType.BYTE_BRAWLER, 1f, 1f, onDeployed = { deployed = true }, onFail = {})
+        assertTrue(deployed)
+        assertEquals(1, engine.raidState.value.troops.size)
+    }
+
+    @Test
+    fun `main view model instantiates and connects siege engine`() {
         val app = ApplicationProvider.getApplicationContext<android.app.Application>()
         val vm = com.example.ui.MainViewModel(app)
         assertNotNull(vm)
-        assertNotNull(vm.gameState.value)
-        assertEquals("Initial Boot Sequence: Neural Arena initialized.", vm.gameState.value.currentLevel.aiBriefing)
+        assertNotNull(vm.raidBattleState.value)
+        assertTrue(vm.playerBase.value.isNotEmpty())
+        assertTrue(vm.cards.value.isNotEmpty())
+        assertTrue(vm.radarNodes.value.isNotEmpty())
+        assertTrue(vm.userBits.value > 0)
     }
 
     @Test
     fun `version util correctly identifies newer releases`() {
         // Same version
-        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.1.2"))
-        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "1.1.2"))
+        assertFalse(VersionUtil.isUpdateAvailable("1.1.2", "v1.1.2"))
+        assertFalse(VersionUtil.isUpdateAvailable("1.1.2", "1.1.2"))
 
         // Remote newer
-        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.1.3"))
-        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v1.2.0"))
-        assertTrue(com.example.update.VersionUtil.isUpdateAvailable("1.1.2", "v2.0.0"))
+        assertTrue(VersionUtil.isUpdateAvailable("1.1.2", "v1.1.3"))
+        assertTrue(VersionUtil.isUpdateAvailable("1.1.2", "v1.2.0"))
+        assertTrue(VersionUtil.isUpdateAvailable("1.1.2", "v2.0.0"))
 
         // Local newer
-        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("1.2.0", "v1.1.9"))
-        org.junit.Assert.assertFalse(com.example.update.VersionUtil.isUpdateAvailable("2.0.0", "v1.9.9"))
+        assertFalse(VersionUtil.isUpdateAvailable("1.2.0", "v1.1.9"))
+        assertFalse(VersionUtil.isUpdateAvailable("2.0.0", "v1.9.9"))
     }
 }

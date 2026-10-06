@@ -1,18 +1,18 @@
 package com.example.game.engine
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import com.example.data.model.EnemyData
-import com.example.data.model.EnemyType
-import com.example.data.model.LevelData
-import com.example.data.model.LevelTile
-import com.example.data.model.Point3D
-import com.example.data.model.TileType
+import com.example.data.model.CollectibleItem
+import com.example.data.model.CollectibleType
+import com.example.data.model.ObstacleItem
+import com.example.data.model.ObstacleType
+import com.example.data.model.RunnerGameState
 import com.example.ui.theme.CyberAmberWarning
 import com.example.ui.theme.CyberCyanAccent
 import com.example.ui.theme.CyberLaserRed
@@ -21,597 +21,563 @@ import com.example.ui.theme.CyberMintLight
 import com.example.ui.theme.CyberMintPrimary
 import com.example.ui.theme.CyberPurpleNeon
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
-data class Camera3D(
-    val yawDegrees: Float = 45f,
-    val pitchRatio: Float = 0.55f, // 0.55 is isometric 45°, 0.85 is top-down tactical
-    val zoom: Float = 1.0f,
-    val panX: Float = 0f,
-    val panY: Float = 0f
-)
-
-sealed class Renderable3D(val depthKey: Float) {
-    class TileItem(val tile: LevelTile, depth: Float) : Renderable3D(depth)
-    class PlayerItem(val x: Float, val y: Float, val z: Float, val isCloaked: Boolean, val animProgress: Float, depth: Float) : Renderable3D(depth)
-    class EnemyItem(val enemy: EnemyData, val renderX: Float, val renderY: Float, val renderZ: Float, depth: Float) : Renderable3D(depth)
-}
-
 class Game3DRenderer {
-
-    private var animPlayerX = -1f
-    private var animPlayerY = -1f
-    private var animPlayerZ = -1f
-
-    private val animEnemyPos = mutableMapOf<String, Triple<Float, Float, Float>>()
 
     fun renderScene(
         drawScope: DrawScope,
-        level: LevelData,
-        playerPos: Point3D,
-        camera: Camera3D,
-        animationTicks: Long,
-        pulseRadarActive: Boolean,
-        isPlayerCloaked: Boolean = false,
-        shockwaveRadius: Float = 0f
+        state: RunnerGameState,
+        animTicks: Long
     ) {
         val width = drawScope.size.width
         val height = drawScope.size.height
 
-        val centerX = width / 2f + camera.panX
-        val centerY = height / 2f + camera.panY
+        val centerX = width / 2f
+        val horizonY = height * 0.28f
+        val trackBottomY = height * 0.88f
+        val maxViewDistance = 75f
 
-        val baseTileSize = (minOf(width, height) / (level.gridWidth + 3)) * camera.zoom
-        val tileW = baseTileSize
-        val tileH = baseTileSize * camera.pitchRatio
-        val tileDepthZ = baseTileSize * 0.45f
-
-        val yawRad = (camera.yawDegrees * PI / 180.0).toFloat()
-        val cosYaw = cos(yawRad)
-        val sinYaw = sin(yawRad)
-
-        val centerGridX = (level.gridWidth - 1) / 2f
-        val centerGridY = (level.gridHeight - 1) / 2f
-
-        fun projectPoint(x: Float, y: Float, z: Float): Offset {
-            val relX = x - centerGridX
-            val relY = y - centerGridY
-
-            val rotX = relX * cosYaw - relY * sinYaw
-            val rotY = relX * sinYaw + relY * cosYaw
-
-            val sx = centerX + (rotX - rotY) * (tileW * 0.72f)
-            val sy = centerY + (rotX + rotY) * (tileH * 0.72f) - (z * tileDepthZ)
+        // Helper 3D Projection to 2D Screen
+        fun project(laneX: Float, zDistance: Float, altitudeY: Float = 0f): Offset {
+            val t = (zDistance / maxViewDistance).coerceIn(0f, 1f)
+            val perspectiveScale = 1f - (t * 0.82f)
+            val sy = horizonY + (trackBottomY - horizonY) * (1f - t) - (altitudeY * perspectiveScale * 90f)
+            val laneSpread = (width * 0.32f) * perspectiveScale
+            val sx = centerX + (laneX * laneSpread)
             return Offset(sx, sy)
         }
 
-        fun computeDepthKey(x: Float, y: Float, z: Float): Float {
-            val relX = x - centerGridX
-            val relY = y - centerGridY
-            val rotY = relX * sinYaw + relY * cosYaw
-            val rotX = relX * cosYaw - relY * sinYaw
-            return (rotX + rotY) * 100f + z * 5f
+        // 1. Cyber Skyline & Neon Grid Background
+        drawSkylineAndGrid(drawScope, width, height, horizonY, trackBottomY, animTicks, state.distanceMeters)
+
+        // 2. 3D Highway Lanes Track
+        draw3DLanes(drawScope, centerX, horizonY, trackBottomY, width, state.distanceMeters)
+
+        // 3. Collectibles on Track
+        state.collectibles.filter { it.zDistance in 0f..maxViewDistance }.sortedByDescending { it.zDistance }.forEach { col ->
+            drawCollectible(drawScope, col, ::project, animTicks)
         }
 
-        // Smooth position interpolation (lerp)
-        if (animPlayerX < 0f) {
-            animPlayerX = playerPos.x.toFloat()
-            animPlayerY = playerPos.y.toFloat()
-            animPlayerZ = playerPos.z.toFloat()
-        } else {
-            animPlayerX += (playerPos.x.toFloat() - animPlayerX) * 0.35f
-            animPlayerY += (playerPos.y.toFloat() - animPlayerY) * 0.35f
-            animPlayerZ += (playerPos.z.toFloat() - animPlayerZ) * 0.35f
+        // 4. Obstacles on Track
+        state.obstacles.filter { it.zDistance in -2f..maxViewDistance }.sortedByDescending { it.zDistance }.forEach { obs ->
+            drawObstacle(drawScope, obs, ::project, animTicks)
         }
 
-        // Draw bright, uplifting cyber turquoise-mint atmosphere
-        drawCyberGridBackground(drawScope, width, height, animationTicks)
+        // 5. Pursuing Hunter Boss Drone (Behind player)
+        drawHunterDrone(drawScope, centerX, horizonY, trackBottomY, state.bossDroneDistance, animTicks)
 
-        // Draw Enemy Tactical Vision Cones onto the floor (before objects)
-        level.enemies.forEach { enemy ->
-            if (!enemy.isStunned) {
-                drawEnemyVisionCone(
-                    drawScope = drawScope,
-                    enemy = enemy,
-                    project = ::projectPoint,
-                    tileW = tileW,
-                    tileH = tileH,
-                    animTicks = animationTicks
-                )
-            }
-        }
+        // 6. The Operative (Player Runner)
+        drawPlayerOperative(drawScope, state, ::project, animTicks)
 
-        // Build list of all 3D items to sort by depth (Painter's algorithm)
-        val renderList = mutableListOf<Renderable3D>()
-
-        level.tiles.forEach { tile ->
-            renderList.add(Renderable3D.TileItem(tile, computeDepthKey(tile.x.toFloat(), tile.y.toFloat(), tile.z.toFloat())))
-        }
-
-        renderList.add(
-            Renderable3D.PlayerItem(
-                animPlayerX,
-                animPlayerY,
-                animPlayerZ,
-                isPlayerCloaked,
-                (animationTicks % 60) / 60f,
-                computeDepthKey(animPlayerX, animPlayerY, animPlayerZ) + 1f
-            )
-        )
-
-        level.enemies.forEach { enemy ->
-            val prev = animEnemyPos[enemy.name] ?: Triple(enemy.x.toFloat(), enemy.y.toFloat(), enemy.z.toFloat())
-            val nx = prev.first + (enemy.x.toFloat() - prev.first) * 0.35f
-            val ny = prev.second + (enemy.y.toFloat() - prev.second) * 0.35f
-            val nz = prev.third + (enemy.z.toFloat() - prev.third) * 0.35f
-            animEnemyPos[enemy.name] = Triple(nx, ny, nz)
-
-            renderList.add(
-                Renderable3D.EnemyItem(
-                    enemy,
-                    nx,
-                    ny,
-                    nz,
-                    computeDepthKey(nx, ny, nz) + 0.8f
-                )
-            )
-        }
-
-        renderList.sortBy { it.depthKey }
-
-        // Render sorted 3D items
-        renderList.forEach { item ->
-            when (item) {
-                is Renderable3D.TileItem -> {
-                    drawTile(
-                        drawScope = drawScope,
-                        tile = item.tile,
-                        project = ::projectPoint,
-                        tileW = tileW,
-                        tileH = tileH,
-                        tileDepthZ = tileDepthZ,
-                        animTicks = animationTicks,
-                        radarActive = pulseRadarActive
-                    )
-                }
-                is Renderable3D.PlayerItem -> {
-                    drawPlayer(
-                        drawScope = drawScope,
-                        renderX = item.x,
-                        renderY = item.y,
-                        renderZ = item.z,
-                        isCloaked = item.isCloaked,
-                        project = ::projectPoint,
-                        baseSize = baseTileSize,
-                        animTicks = animationTicks
-                    )
-                }
-                is Renderable3D.EnemyItem -> {
-                    drawEnemy(
-                        drawScope = drawScope,
-                        enemy = item.enemy,
-                        renderX = item.renderX,
-                        renderY = item.renderY,
-                        renderZ = item.renderZ,
-                        project = ::projectPoint,
-                        baseSize = baseTileSize,
-                        animTicks = animationTicks
-                    )
-                }
-            }
-        }
-
-        // Draw EMP expanding shockwave ring if triggered
-        if (shockwaveRadius > 0f) {
-            val playerScreen = projectPoint(playerPos.x.toFloat(), playerPos.y.toFloat(), playerPos.z.toFloat())
-            drawScope.drawCircle(
-                color = Color(0x6600E5FF),
-                radius = shockwaveRadius * baseTileSize * 1.5f,
-                center = playerScreen,
-                style = Stroke(width = 4f)
-            )
+        // 7. Warp Speed Lines (if active)
+        if (state.isWarpActive) {
+            drawSpeedLines(drawScope, width, height, centerX, horizonY, animTicks)
         }
     }
 
-    private fun drawCyberGridBackground(drawScope: DrawScope, width: Float, height: Float, animTicks: Long) {
-        // Uplifting luminous cyber turquoise-mint gradient
+    private fun drawSkylineAndGrid(
+        drawScope: DrawScope,
+        width: Float,
+        height: Float,
+        horizonY: Float,
+        trackBottomY: Float,
+        animTicks: Long,
+        distanceMeters: Float
+    ) {
+        // Dark Cyber Sky
         drawScope.drawRect(
             brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFF0F3A2E),
-                    Color(0xFF175745),
-                    Color(0xFF22755E)
-                )
-            )
+                listOf(
+                    Color(0xFF040E0A),
+                    Color(0xFF071912),
+                    Color(0xFF0C241B)
+                ),
+                startY = 0f,
+                endY = horizonY
+            ),
+            size = Size(width, horizonY)
         )
 
-        // Luminous scanning laser lines
-        val pulseY = ((animTicks * 2f) % height)
+        // Distant Cyber Skyscrapers & Neon Spines
+        val numBuildings = 9
+        for (i in 0 until numBuildings) {
+            val bWidth = width / numBuildings
+            val bHeight = 40f + (sin((i * 1.7f) + 1f) * 35f).coerceAtLeast(15f)
+            val bx = i * bWidth
+            val by = horizonY - bHeight
+
+            val buildingColor = if (i % 2 == 0) Color(0xFF081C15) else Color(0xFF061510)
+            drawScope.drawRect(
+                color = buildingColor,
+                topLeft = Offset(bx + 4f, by),
+                size = Size(bWidth - 8f, bHeight)
+            )
+
+            // Neon Window Sparks
+            val glowColor = if (i % 3 == 0) CyberMintPrimary.copy(alpha = 0.5f) else CyberCyanAccent.copy(alpha = 0.4f)
+            drawScope.drawCircle(
+                color = glowColor,
+                radius = 2f,
+                center = Offset(bx + bWidth / 2f, by + 12f)
+            )
+        }
+
+        // Pulsing Neon Horizon Line
         drawScope.drawLine(
-            color = Color(0x3338EFAB),
-            start = Offset(0f, pulseY),
-            end = Offset(width, pulseY),
-            strokeWidth = 2f
+            color = CyberMintLight.copy(alpha = 0.7f),
+            start = Offset(0f, horizonY),
+            end = Offset(width, horizonY),
+            strokeWidth = 2.5f
         )
     }
 
-    private fun drawTile(
+    private fun draw3DLanes(
         drawScope: DrawScope,
-        tile: LevelTile,
-        project: (Float, Float, Float) -> Offset,
-        tileW: Float,
-        tileH: Float,
-        tileDepthZ: Float,
-        animTicks: Long,
-        radarActive: Boolean
+        centerX: Float,
+        horizonY: Float,
+        trackBottomY: Float,
+        width: Float,
+        distanceMeters: Float
     ) {
-        val x = tile.x.toFloat()
-        val y = tile.y.toFloat()
-        val z = tile.z.toFloat()
-
-        val pNorth = project(x, y - 0.48f, z)
-        val pEast = project(x + 0.48f, y, z)
-        val pSouth = project(x, y + 0.48f, z)
-        val pWest = project(x - 0.48f, y, z)
-
-        val slabHeight = when {
-            tile.type == TileType.WALL -> tileDepthZ * 2.2f
-            tile.type == TileType.ELEVATION_RAMP || z > 0 -> tileDepthZ * (z + 0.6f)
-            tile.type == TileType.DEPRESSION_PIT -> tileDepthZ * 0.2f
-            else -> tileDepthZ * 0.45f
-        }
-
-        val pSouthBase = Offset(pSouth.x, pSouth.y + slabHeight)
-        val pEastBase = Offset(pEast.x, pEast.y + slabHeight)
-        val pWestBase = Offset(pWest.x, pWest.y + slabHeight)
-
-        val (topColor, leftSideColor, rightSideColor, outlineColor) = when (tile.type) {
-            TileType.WALL -> Quad(Color(0xFF1B5945), Color(0xFF134535), Color(0xFF0E3327), CyberMintLight)
-            TileType.ELEVATION_RAMP -> Quad(Color(0xFF2BA17F), Color(0xFF218266), Color(0xFF18664F), Color(0xFF80FFD4))
-            TileType.DEPRESSION_PIT -> Quad(Color(0xFF4D2027), Color(0xFF38161B), Color(0xFF260D11), CyberLaserRed)
-            TileType.EXIT_PORTAL -> Quad(Color(0xFF207582), Color(0xFF175761), Color(0xFF103E45), CyberCyanAccent)
-            TileType.TERMINAL -> Quad(Color(0xFF456333), Color(0xFF354D26), Color(0xFF25381A), CyberAmberWarning)
-            TileType.PRESSURE_SWITCH -> Quad(
-                if (tile.isActivated) Color(0xFF1C6348) else Color(0xFF1A5043),
-                Color(0xFF15483B),
-                Color(0xFF0E382C),
-                if (tile.isActivated) CyberMintPrimary else CyberCyanAccent
-            )
-            TileType.LASER_GATE -> Quad(
-                if (tile.isDeactivated) Color(0xFF184D3D) else Color(0xFF451A22),
-                Color(0xFF134033),
-                Color(0xFF0D3328),
-                if (tile.isDeactivated) CyberMintDark else CyberLaserRed
-            )
-            TileType.POWER_CORE -> Quad(Color(0xFF258567), Color(0xFF1C6B52), Color(0xFF14523E), Color(0xFF70FFCC))
-            TileType.FLOOR -> Quad(Color(0xFF1E6952), Color(0xFF165240), Color(0xFF103E30), Color(0xFF38EFAB))
-        }
-
-        // Left Side Extrusion
-        val leftPath = Path().apply {
-            moveTo(pWest.x, pWest.y)
-            lineTo(pSouth.x, pSouth.y)
-            lineTo(pSouthBase.x, pSouthBase.y)
-            lineTo(pWestBase.x, pWestBase.y)
-            close()
-        }
-        drawScope.drawPath(leftPath, color = leftSideColor, style = Fill)
-        drawScope.drawPath(leftPath, color = Color(0x3300E599), style = Stroke(width = 1f))
-
-        // Right Side Extrusion
-        val rightPath = Path().apply {
-            moveTo(pSouth.x, pSouth.y)
-            lineTo(pEast.x, pEast.y)
-            lineTo(pEastBase.x, pEastBase.y)
-            lineTo(pSouthBase.x, pSouthBase.y)
-            close()
-        }
-        drawScope.drawPath(rightPath, color = rightSideColor, style = Fill)
-        drawScope.drawPath(rightPath, color = Color(0x2200E599), style = Stroke(width = 1f))
-
-        // Top Diamond Face
-        val topPath = Path().apply {
-            moveTo(pNorth.x, pNorth.y)
-            lineTo(pEast.x, pEast.y)
-            lineTo(pSouth.x, pSouth.y)
-            lineTo(pWest.x, pWest.y)
-            close()
-        }
-        drawScope.drawPath(topPath, color = topColor, style = Fill)
-        drawScope.drawPath(
-            topPath,
-            color = if (radarActive) CyberMintLight else outlineColor,
-            style = Stroke(width = if (radarActive) 2.2f else 1.2f)
+        // Ground Mesh under track
+        drawScope.drawRect(
+            color = Color(0xFF05140F),
+            topLeft = Offset(0f, horizonY),
+            size = Size(width, drawScope.size.height - horizonY)
         )
 
-        // Decorators
-        val centerTop = project(x, y, z)
+        val bottomTrackWidth = width * 0.94f
+        val topTrackWidth = width * 0.16f
 
-        when (tile.type) {
-            TileType.WALL -> {
-                drawScope.drawLine(
-                    color = CyberMintLight,
-                    start = centerTop,
-                    end = Offset(centerTop.x, centerTop.y - tileDepthZ * 0.8f),
-                    strokeWidth = 3f
+        val leftTop = Offset(centerX - topTrackWidth / 2f, horizonY)
+        val rightTop = Offset(centerX + topTrackWidth / 2f, horizonY)
+        val rightBottom = Offset(centerX + bottomTrackWidth / 2f, trackBottomY)
+        val leftBottom = Offset(centerX - bottomTrackWidth / 2f, trackBottomY)
+
+        // 3D Highway Road Surface
+        val roadPath = Path().apply {
+            moveTo(leftTop.x, leftTop.y)
+            lineTo(rightTop.x, rightTop.y)
+            lineTo(rightBottom.x, rightBottom.y)
+            lineTo(leftBottom.x, leftBottom.y)
+            close()
+        }
+        drawScope.drawPath(
+            path = roadPath,
+            brush = Brush.verticalGradient(
+                listOf(Color(0xFF092018), Color(0xFF0D2D22), Color(0xFF071912)),
+                startY = horizonY,
+                endY = trackBottomY
+            )
+        )
+
+        // Outer Neon Guardrails
+        drawScope.drawLine(color = CyberMintPrimary, start = leftTop, end = leftBottom, strokeWidth = 3f)
+        drawScope.drawLine(color = CyberMintPrimary, start = rightTop, end = rightBottom, strokeWidth = 3f)
+
+        // Lane Dividers (-1, 0, 1 -> 2 divider lines)
+        for (divider in listOf(-0.33f, 0.33f)) {
+            val dTop = Offset(centerX + (topTrackWidth / 2f) * divider, horizonY)
+            val dBottom = Offset(centerX + (bottomTrackWidth / 2f) * divider, trackBottomY)
+            drawScope.drawLine(
+                color = Color(0x6600E599),
+                start = dTop,
+                end = dBottom,
+                strokeWidth = 1.5f
+            )
+        }
+
+        // Horizontal Moving Grid Ties (creates high speed illusion)
+        val offset = (distanceMeters % 10f) / 10f
+        for (i in 1..10) {
+            val frac = ((i.toFloat() / 10f) + offset) % 1f
+            val t = frac * frac // Perspective compression toward horizon
+            val y = horizonY + (trackBottomY - horizonY) * t
+            val currentW = topTrackWidth + (bottomTrackWidth - topTrackWidth) * t
+            val lx = centerX - currentW / 2f
+            val rx = centerX + currentW / 2f
+
+            drawScope.drawLine(
+                color = Color(0x3300E599),
+                start = Offset(lx, y),
+                end = Offset(rx, y),
+                strokeWidth = 1.2f
+            )
+        }
+    }
+
+    private fun drawCollectible(
+        drawScope: DrawScope,
+        item: CollectibleItem,
+        project: (Float, Float, Float) -> Offset,
+        animTicks: Long
+    ) {
+        val pos = project(item.lane.index.toFloat(), item.zDistance, item.elevationOffset + 0.3f)
+        val t = (item.zDistance / 75f).coerceIn(0f, 1f)
+        val scale = (1f - (t * 0.8f)) * 18f
+
+        when (item.type) {
+            CollectibleType.NEON_BIT -> {
+                // Spinning Gold Cyber Bit
+                val spin = (animTicks * 8f) % 360f
+                val rad = (spin * PI / 180f).toFloat()
+                val radius = scale * 0.6f
+
+                drawScope.drawCircle(
+                    color = CyberAmberWarning.copy(alpha = 0.4f),
+                    radius = radius * 1.5f,
+                    center = pos
+                )
+                drawScope.drawCircle(
+                    color = CyberAmberWarning,
+                    radius = radius,
+                    center = pos
+                )
+                drawScope.drawCircle(
+                    color = Color.White,
+                    radius = radius * 0.4f,
+                    center = Offset(pos.x + cos(rad) * radius * 0.4f, pos.y + sin(rad) * radius * 0.4f)
                 )
             }
-            TileType.POWER_CORE -> {
-                if (!tile.isCollected) {
-                    val floatOffset = sin((animTicks + x * 10) * 0.1f) * 6f
-                    val coreCenter = Offset(centerTop.x, centerTop.y - tileDepthZ * 0.7f + floatOffset)
-
-                    drawScope.drawCircle(color = Color(0x5500E599), radius = tileW * 0.22f, center = coreCenter)
-                    drawScope.drawCircle(color = CyberMintLight, radius = tileW * 0.12f, center = coreCenter)
-                    drawScope.drawCircle(color = Color.White, radius = tileW * 0.06f, center = coreCenter)
-                }
+            CollectibleType.ENERGY_CORE -> {
+                // Pulsing Cyan Battery Core
+                drawScope.drawCircle(color = CyberCyanAccent.copy(alpha = 0.45f), radius = scale * 0.9f, center = pos)
+                drawScope.drawCircle(color = CyberCyanAccent, radius = scale * 0.6f, center = pos)
+                drawScope.drawCircle(color = Color.White, radius = scale * 0.3f, center = pos)
             }
-            TileType.PRESSURE_SWITCH -> {
-                drawScope.drawCircle(
-                    color = if (tile.isActivated) CyberMintPrimary else CyberCyanAccent,
-                    radius = tileW * 0.18f,
-                    center = centerTop,
+            CollectibleType.MAGNET -> {
+                drawScope.drawCircle(color = CyberPurpleNeon, radius = scale * 0.7f, center = pos, style = Stroke(width = 3f))
+                drawScope.drawCircle(color = Color.White, radius = scale * 0.3f, center = pos)
+            }
+            CollectibleType.CYBER_SHIELD -> {
+                drawScope.drawCircle(color = CyberMintLight, radius = scale * 0.8f, center = pos, style = Stroke(width = 3f))
+                drawScope.drawCircle(color = Color(0x6600E599), radius = scale * 0.5f, center = pos)
+            }
+            CollectibleType.MULTIPLIER_CHIP -> {
+                drawScope.drawRect(
+                    color = CyberLaserRed,
+                    topLeft = Offset(pos.x - scale * 0.5f, pos.y - scale * 0.5f),
+                    size = Size(scale, scale)
+                )
+            }
+        }
+    }
+
+    private fun drawObstacle(
+        drawScope: DrawScope,
+        obs: ObstacleItem,
+        project: (Float, Float, Float) -> Offset,
+        animTicks: Long
+    ) {
+        if (obs.isDestroyed) {
+            // Shattered particle burst
+            val center = project(obs.lane.index.toFloat(), obs.zDistance, 0.4f)
+            drawScope.drawCircle(color = CyberLaserRed.copy(alpha = 0.6f), radius = 16f, center = center)
+            drawScope.drawCircle(color = CyberMintLight, radius = 6f, center = center)
+            return
+        }
+
+        val t = (obs.zDistance / 75f).coerceIn(0f, 1f)
+        val scale = (1f - (t * 0.8f))
+
+        when (obs.type) {
+            ObstacleType.LOW_BARRIER -> {
+                // Jump over barrier (Subway Surfers hurdle)
+                val base = project(obs.lane.index.toFloat(), obs.zDistance, 0f)
+                val top = project(obs.lane.index.toFloat(), obs.zDistance, 0.85f)
+                val bWidth = (drawScope.size.width * 0.22f) * scale
+                val bHeight = abs(top.y - base.y).coerceAtLeast(12f)
+
+                // Barrier Face
+                drawScope.drawRect(
+                    color = Color(0xFF1E0A10),
+                    topLeft = Offset(base.x - bWidth / 2f, top.y),
+                    size = Size(bWidth, bHeight)
+                )
+                drawScope.drawRect(
+                    color = CyberLaserRed,
+                    topLeft = Offset(base.x - bWidth / 2f, top.y),
+                    size = Size(bWidth, bHeight),
                     style = Stroke(width = 2.5f)
                 )
-                if (tile.isActivated) {
-                    drawScope.drawCircle(color = CyberMintLight, radius = tileW * 0.1f, center = centerTop)
-                }
-            }
-            TileType.LASER_GATE -> {
-                if (!tile.isDeactivated) {
-                    // Pulsing Red Laser Fence
-                    val post1 = Offset(pWest.x, pWest.y - tileDepthZ * 0.6f)
-                    val post2 = Offset(pEast.x, pEast.y - tileDepthZ * 0.6f)
-                    drawScope.drawLine(color = CyberLaserRed, start = post1, end = post2, strokeWidth = 3.5f)
-                    drawScope.drawLine(color = Color.White, start = post1, end = post2, strokeWidth = 1.2f)
-                } else {
-                    // Deactivated Green Fence
-                    val post1 = Offset(pWest.x, pWest.y - tileDepthZ * 0.4f)
-                    val post2 = Offset(pEast.x, pEast.y - tileDepthZ * 0.4f)
-                    drawScope.drawLine(color = Color(0x5500C882), start = post1, end = post2, strokeWidth = 1.5f)
-                }
-            }
-            TileType.TERMINAL -> {
-                val termPos = Offset(centerTop.x, centerTop.y - tileDepthZ * 0.6f)
-                drawScope.drawCircle(
-                    color = if (tile.isDeactivated) CyberMintDark else CyberAmberWarning,
-                    radius = tileW * 0.16f,
-                    center = termPos,
-                    style = Stroke(width = 2.5f)
-                )
+
+                // Hazard Diagonal Stripe
                 drawScope.drawLine(
                     color = CyberAmberWarning,
-                    start = Offset(termPos.x - 6f, termPos.y),
-                    end = Offset(termPos.x + 6f, termPos.y),
+                    start = Offset(base.x - bWidth / 2f + 4f, top.y + 4f),
+                    end = Offset(base.x + bWidth / 2f - 4f, base.y - 4f),
                     strokeWidth = 2f
                 )
             }
-            TileType.EXIT_PORTAL -> {
-                val spinAngle = (animTicks * 4f) % 360f
-                val rad = (spinAngle * PI / 180f).toFloat()
-                val portalCenter = Offset(centerTop.x, centerTop.y - tileDepthZ * 0.8f)
+            ObstacleType.HIGH_LASER -> {
+                // Slide under laser gate (overhead energy beam)
+                val beamPos = project(obs.lane.index.toFloat(), obs.zDistance, 1.1f)
+                val bWidth = (drawScope.size.width * 0.26f) * scale
 
-                drawScope.drawCircle(color = CyberCyanAccent, radius = tileW * 0.28f, center = portalCenter, style = Stroke(width = 2.5f))
-                drawScope.drawCircle(color = CyberMintLight, radius = tileW * 0.18f, center = portalCenter, style = Stroke(width = 1.8f))
-                val dx = cos(rad) * tileW * 0.25f
-                val dy = sin(rad) * tileW * 0.25f
-                drawScope.drawLine(color = Color.White, start = Offset(portalCenter.x - dx, portalCenter.y - dy), end = Offset(portalCenter.x + dx, portalCenter.y + dy), strokeWidth = 2f)
+                // Posts on sides
+                val postHeight = 35f * scale
+                drawScope.drawLine(
+                    color = CyberCyanAccent,
+                    start = Offset(beamPos.x - bWidth / 2f, beamPos.y + postHeight),
+                    end = Offset(beamPos.x - bWidth / 2f, beamPos.y),
+                    strokeWidth = 3f
+                )
+                drawScope.drawLine(
+                    color = CyberCyanAccent,
+                    start = Offset(beamPos.x + bWidth / 2f, beamPos.y + postHeight),
+                    end = Offset(beamPos.x + bWidth / 2f, beamPos.y),
+                    strokeWidth = 3f
+                )
+
+                // High Laser Beam (must slide underneath)
+                drawScope.drawLine(
+                    color = CyberLaserRed,
+                    start = Offset(beamPos.x - bWidth / 2f, beamPos.y),
+                    end = Offset(beamPos.x + bWidth / 2f, beamPos.y),
+                    strokeWidth = 4f
+                )
+                drawScope.drawLine(
+                    color = Color.White,
+                    start = Offset(beamPos.x - bWidth / 2f, beamPos.y),
+                    end = Offset(beamPos.x + bWidth / 2f, beamPos.y),
+                    strokeWidth = 1.5f
+                )
             }
-            TileType.DEPRESSION_PIT -> {
-                drawScope.drawLine(color = CyberLaserRed, start = Offset(pWest.x + 6f, pWest.y), end = Offset(pEast.x - 6f, pEast.y), strokeWidth = 1.5f)
+            ObstacleType.GLITCH_PIT -> {
+                // Digital void trench
+                val pitPos = project(obs.lane.index.toFloat(), obs.zDistance, 0f)
+                val pWidth = (drawScope.size.width * 0.24f) * scale
+                val pLength = 22f * scale
+
+                drawScope.drawOval(
+                    color = Color(0xFF000504),
+                    topLeft = Offset(pitPos.x - pWidth / 2f, pitPos.y - pLength / 2f),
+                    size = Size(pWidth, pLength)
+                )
+                drawScope.drawOval(
+                    color = CyberPurpleNeon,
+                    topLeft = Offset(pitPos.x - pWidth / 2f, pitPos.y - pLength / 2f),
+                    size = Size(pWidth, pLength),
+                    style = Stroke(width = 2f)
+                )
             }
-            else -> Unit
+            ObstacleType.ELEVATED_RAMP -> {
+                // Neon ascending skyway ramp
+                val rampBase = project(obs.lane.index.toFloat(), obs.zDistance, 0f)
+                val rampTop = project(obs.lane.index.toFloat(), obs.zDistance + 4f, 1.2f)
+                val rWidth = (drawScope.size.width * 0.25f) * scale
+
+                val rampPath = Path().apply {
+                    moveTo(rampBase.x - rWidth / 2f, rampBase.y)
+                    lineTo(rampBase.x + rWidth / 2f, rampBase.y)
+                    lineTo(rampTop.x + rWidth * 0.4f, rampTop.y)
+                    lineTo(rampTop.x - rWidth * 0.4f, rampTop.y)
+                    close()
+                }
+                drawScope.drawPath(rampPath, color = Color(0xFF133B2C))
+                drawScope.drawPath(rampPath, color = CyberMintLight, style = Stroke(width = 2.5f))
+            }
+            ObstacleType.SECURITY_DRONE -> {
+                val dronePos = project(obs.lane.index.toFloat(), obs.zDistance, 0.7f)
+                drawScope.drawCircle(color = CyberLaserRed, radius = 14f * scale, center = dronePos)
+                drawScope.drawCircle(color = Color.White, radius = 5f * scale, center = dronePos)
+            }
         }
     }
 
-    private fun drawEnemyVisionCone(
+    private fun drawHunterDrone(
         drawScope: DrawScope,
-        enemy: EnemyData,
-        project: (Float, Float, Float) -> Offset,
-        tileW: Float,
-        tileH: Float,
+        centerX: Float,
+        horizonY: Float,
+        trackBottomY: Float,
+        droneDistanceMeters: Float,
         animTicks: Long
     ) {
-        val origin = project(enemy.x.toFloat(), enemy.y.toFloat(), enemy.z.toFloat())
-        val coneColor = if (enemy.isAlerted) Color(0x33FF3366) else Color(0x22FFB703)
-        val borderColor = if (enemy.isAlerted) Color(0x66FF3366) else Color(0x44FFB703)
+        // Drone is hovering behind the player (e.g. 5m to 16m)
+        val dangerFraction = (1f - (droneDistanceMeters / 18f)).coerceIn(0f, 1f)
+        val droneScreenY = trackBottomY + 15f - (dangerFraction * 65f)
+        val droneScale = 1f + (dangerFraction * 0.6f)
 
-        val target = when (enemy.type) {
-            EnemyType.HUNTER -> project(enemy.x.toFloat(), enemy.y.toFloat() + 1.8f, enemy.z.toFloat())
-            EnemyType.SENTINEL -> {
-                val rot = (animTicks * 2f % 360f) * PI / 180f
-                val dx = cos(rot).toFloat() * 2f
-                val dy = sin(rot).toFloat() * 2f
-                project(enemy.x.toFloat() + dx, enemy.y.toFloat() + dy, enemy.z.toFloat())
-            }
-            else -> project(enemy.x.toFloat() + 1.2f, enemy.y.toFloat() + 1.2f, enemy.z.toFloat())
-        }
+        val bobbing = sin(animTicks * 0.18f) * 6f
+        val droneCenter = Offset(centerX, droneScreenY + bobbing)
 
-        val conePath = Path().apply {
-            moveTo(origin.x, origin.y)
-            lineTo(target.x - tileW * 0.35f, target.y)
-            lineTo(target.x + tileW * 0.35f, target.y)
-            close()
-        }
-        drawScope.drawPath(conePath, color = coneColor, style = Fill)
-        drawScope.drawPath(conePath, color = borderColor, style = Stroke(width = 1.2f))
+        // Threat Spotlight onto track
+        val spotLightColor = if (dangerFraction > 0.5f) Color(0x55FF3366) else Color(0x33FFB703)
+        drawScope.drawOval(
+            color = spotLightColor,
+            topLeft = Offset(centerX - 80f * droneScale, trackBottomY - 40f),
+            size = Size(160f * droneScale, 50f)
+        )
+
+        // Hunter Drone Hull
+        val droneWidth = 70f * droneScale
+        val droneHeight = 24f * droneScale
+        drawScope.drawOval(
+            color = Color(0xFF1F0B13),
+            topLeft = Offset(droneCenter.x - droneWidth / 2f, droneCenter.y - droneHeight / 2f),
+            size = Size(droneWidth, droneHeight)
+        )
+        drawScope.drawOval(
+            color = if (dangerFraction > 0.5f) CyberLaserRed else CyberAmberWarning,
+            topLeft = Offset(droneCenter.x - droneWidth / 2f, droneCenter.y - droneHeight / 2f),
+            size = Size(droneWidth, droneHeight),
+            style = Stroke(width = 2.5f)
+        )
+
+        // Red Central Threat Eye
+        drawScope.drawCircle(
+            color = CyberLaserRed,
+            radius = 7f * droneScale,
+            center = droneCenter
+        )
+        drawScope.drawCircle(
+            color = Color.White,
+            radius = 3f * droneScale,
+            center = droneCenter
+        )
+
+        // Side Thruster Flames
+        drawScope.drawCircle(color = CyberCyanAccent, radius = 4f * droneScale, center = Offset(droneCenter.x - droneWidth * 0.45f, droneCenter.y + 4f))
+        drawScope.drawCircle(color = CyberCyanAccent, radius = 4f * droneScale, center = Offset(droneCenter.x + droneWidth * 0.45f, droneCenter.y + 4f))
     }
 
-    private fun drawPlayer(
+    private fun drawPlayerOperative(
         drawScope: DrawScope,
-        renderX: Float,
-        renderY: Float,
-        renderZ: Float,
-        isCloaked: Boolean,
+        state: RunnerGameState,
         project: (Float, Float, Float) -> Offset,
-        baseSize: Float,
         animTicks: Long
     ) {
-        val center = project(renderX, renderY, renderZ)
-        val bobbing = sin(animTicks * 0.15f) * 3f
-        val playerCenter = Offset(center.x, center.y - baseSize * 0.55f + bobbing)
+        val playerScreenPos = project(state.lanePosition, 0f, state.playerY)
+        val bobbing = if (state.isJumping || state.isSliding) 0f else sin(animTicks * 0.45f) * 3f
+        val pos = Offset(playerScreenPos.x, playerScreenPos.y + bobbing)
 
-        val alpha = if (isCloaked) 0.45f else 1.0f
-
-        // 1. Hover shadow on tile surface
+        // 1. Dynamic Floor Shadow
+        val shadowWidth = if (state.isSliding) 55f else 36f
+        val shadowY = project(state.lanePosition, 0f, 0f).y
         drawScope.drawOval(
-            color = Color(0x6600E599).copy(alpha = alpha * 0.4f),
-            topLeft = Offset(center.x - baseSize * 0.22f, center.y - baseSize * 0.11f),
-            size = androidx.compose.ui.geometry.Size(baseSize * 0.44f, baseSize * 0.22f)
+            color = Color(0x6600E599),
+            topLeft = Offset(pos.x - shadowWidth / 2f, shadowY - 8f),
+            size = Size(shadowWidth, 14f)
         )
 
-        // 2. Operative Outer Cyber Shield Ring
-        drawScope.drawCircle(
-            color = (if (isCloaked) CyberCyanAccent else CyberMintPrimary).copy(alpha = alpha * 0.35f),
-            radius = baseSize * 0.28f,
-            center = playerCenter
-        )
-
-        // 3. Operative Body (Sleek Cyber Capsule)
-        drawScope.drawCircle(
-            color = CyberMintDark.copy(alpha = alpha),
-            radius = baseSize * 0.18f,
-            center = playerCenter
-        )
-
-        // 4. Operative Neon Visor
-        drawScope.drawOval(
-            color = (if (isCloaked) CyberCyanAccent else CyberMintLight).copy(alpha = alpha),
-            topLeft = Offset(playerCenter.x - baseSize * 0.12f, playerCenter.y - baseSize * 0.07f),
-            size = androidx.compose.ui.geometry.Size(baseSize * 0.24f, baseSize * 0.1f)
-        )
-
-        // 5. Visor Glint
-        drawScope.drawCircle(
-            color = Color.White.copy(alpha = alpha),
-            radius = baseSize * 0.04f,
-            center = Offset(playerCenter.x + baseSize * 0.03f, playerCenter.y - baseSize * 0.02f)
-        )
-
-        // Cloak Shimmer Indicator
-        if (isCloaked) {
-            drawScope.drawCircle(
+        if (state.isSliding) {
+            // Sliding Pose: Low cyber capsule gliding horizontally
+            val slideW = 54f
+            val slideH = 18f
+            drawScope.drawRoundRect(
+                color = CyberMintDark,
+                topLeft = Offset(pos.x - slideW / 2f, pos.y - slideH),
+                size = Size(slideW, slideH),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f)
+            )
+            drawScope.drawRoundRect(
+                color = CyberMintLight,
+                topLeft = Offset(pos.x - slideW / 2f, pos.y - slideH),
+                size = Size(slideW, slideH),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
+                style = Stroke(width = 2f)
+            )
+            // Visor
+            drawScope.drawOval(
                 color = CyberCyanAccent,
-                radius = baseSize * 0.34f,
-                center = playerCenter,
-                style = Stroke(width = 1.5f)
+                topLeft = Offset(pos.x + 8f, pos.y - slideH + 4f),
+                size = Size(14f, 8f)
+            )
+            // Spark trail on road
+            drawScope.drawCircle(color = CyberAmberWarning, radius = 3f, center = Offset(pos.x - 22f, pos.y - 2f))
+            drawScope.drawCircle(color = Color.White, radius = 2f, center = Offset(pos.x - 28f, pos.y - 4f))
+        } else {
+            // Running / Jumping Pose
+            val charW = 30f
+            val charH = 50f
+            val bodyTop = pos.y - charH
+
+            // Torso
+            drawScope.drawRoundRect(
+                color = CyberMintDark,
+                topLeft = Offset(pos.x - charW / 2f, bodyTop + 14f),
+                size = Size(charW, 26f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f)
+            )
+            drawScope.drawRoundRect(
+                color = CyberMintPrimary,
+                topLeft = Offset(pos.x - charW / 2f, bodyTop + 14f),
+                size = Size(charW, 26f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                style = Stroke(width = 2f)
+            )
+
+            // Neon Cyber Helmet
+            drawScope.drawCircle(color = Color(0xFF0F3829), radius = 13f, center = Offset(pos.x, bodyTop + 8f))
+            drawScope.drawCircle(color = CyberMintLight, radius = 13f, center = Offset(pos.x, bodyTop + 8f), style = Stroke(width = 1.8f))
+
+            // Visor (Glowing Cyan)
+            drawScope.drawOval(
+                color = CyberCyanAccent,
+                topLeft = Offset(pos.x - 9f, bodyTop + 5f),
+                size = Size(18f, 8f)
+            )
+
+            // Running Legs / Jump Boosters
+            if (state.isJumping) {
+                // Jet Thrusters firing downwards
+                drawScope.drawCircle(color = CyberCyanAccent, radius = 6f, center = Offset(pos.x - 8f, pos.y))
+                drawScope.drawCircle(color = CyberCyanAccent, radius = 6f, center = Offset(pos.x + 8f, pos.y))
+                drawScope.drawCircle(color = Color.White, radius = 3f, center = Offset(pos.x - 8f, pos.y + 3f))
+                drawScope.drawCircle(color = Color.White, radius = 3f, center = Offset(pos.x + 8f, pos.y + 3f))
+            } else {
+                // Running feet
+                val legCycle = sin(animTicks * 0.5f) * 10f
+                drawScope.drawCircle(color = CyberMintLight, radius = 5f, center = Offset(pos.x - 8f, pos.y + legCycle))
+                drawScope.drawCircle(color = CyberMintLight, radius = 5f, center = Offset(pos.x + 8f, pos.y - legCycle))
+            }
+        }
+
+        // 2. Shield Matrix Bubble (if armed)
+        if (state.hasShield) {
+            drawScope.drawCircle(
+                color = CyberMintLight,
+                radius = 38f,
+                center = Offset(pos.x, pos.y - 25f),
+                style = Stroke(width = 2.5f)
+            )
+            drawScope.drawCircle(
+                color = Color(0x3300E599),
+                radius = 38f,
+                center = Offset(pos.x, pos.y - 25f)
             )
         }
     }
 
-    private fun drawEnemy(
+    private fun drawSpeedLines(
         drawScope: DrawScope,
-        enemy: EnemyData,
-        renderX: Float,
-        renderY: Float,
-        renderZ: Float,
-        project: (Float, Float, Float) -> Offset,
-        baseSize: Float,
+        width: Float,
+        height: Float,
+        centerX: Float,
+        horizonY: Float,
         animTicks: Long
     ) {
-        val center = project(renderX, renderY, renderZ)
-        val bobbing = sin((animTicks + enemy.x * 20) * 0.12f) * 4f
-        val droneCenter = Offset(center.x, center.y - baseSize * 0.65f + bobbing)
+        val numLines = 14
+        for (i in 0 until numLines) {
+            val angle = (i * (360f / numLines) + (animTicks * 12f)) % 360f
+            val rad = (angle * PI / 180f).toFloat()
+            val startDist = 60f + ((animTicks * 15f + i * 30f) % 180f)
+            val endDist = startDist + 50f
 
-        val isAlert = enemy.isAlerted
-        val isStun = enemy.isStunned
+            val sx = centerX + cos(rad) * startDist
+            val sy = horizonY + sin(rad) * startDist
+            val ex = centerX + cos(rad) * endDist
+            val ey = horizonY + sin(rad) * endDist
 
-        val (enemyColor, auraColor) = when {
-            isStun -> Pair(CyberAmberWarning, Color(0x66FFB703))
-            isAlert -> Pair(CyberLaserRed, Color(0x66FF3366))
-            else -> when (enemy.type) {
-                EnemyType.HUNTER -> Pair(Color(0xFFFF5252), Color(0x44FF5252))
-                EnemyType.SENTINEL -> Pair(CyberAmberWarning, Color(0x44FFB703))
-                EnemyType.PHANTOM -> Pair(CyberPurpleNeon, Color(0x449D4EDD))
-                EnemyType.STALKER -> Pair(Color(0xFFFF7A00), Color(0x44FF7A00))
-            }
-        }
-
-        // 1. Drone Active Vision Spotlight on Floor
-        if (!isStun) {
-            val scanAngle = sin(animTicks * 0.08f) * (baseSize * 0.35f)
-            val scannerTarget = Offset(center.x + scanAngle, center.y + baseSize * 0.35f)
-            drawScope.drawLine(color = auraColor, start = droneCenter, end = scannerTarget, strokeWidth = 2f)
-            drawScope.drawCircle(color = auraColor, radius = baseSize * 0.22f, center = scannerTarget)
-        }
-
-        // 2. Drone Pulsing Aura
-        drawScope.drawCircle(color = auraColor, radius = baseSize * 0.3f, center = droneCenter)
-
-        // 3. Drone Mechanical Chassis
-        val dronePath = Path().apply {
-            moveTo(droneCenter.x, droneCenter.y - baseSize * 0.16f)
-            lineTo(droneCenter.x + baseSize * 0.16f, droneCenter.y)
-            lineTo(droneCenter.x, droneCenter.y + baseSize * 0.16f)
-            lineTo(droneCenter.x - baseSize * 0.16f, droneCenter.y)
-            close()
-        }
-        drawScope.drawPath(dronePath, color = Color(0xFF1E0A10), style = Fill)
-        drawScope.drawPath(dronePath, color = enemyColor, style = Stroke(width = 2.2f))
-
-        // 4. Central Threat Core
-        drawScope.drawCircle(color = enemyColor, radius = baseSize * 0.07f, center = droneCenter)
-        drawScope.drawCircle(color = Color.White, radius = baseSize * 0.03f, center = droneCenter)
-
-        // Alert Indicator '!'
-        if (isAlert && !isStun) {
-            val alertPos = Offset(droneCenter.x, droneCenter.y - baseSize * 0.3f)
-            drawScope.drawCircle(color = CyberLaserRed, radius = 7f, center = alertPos)
-            drawScope.drawCircle(color = Color.White, radius = 4f, center = alertPos)
-        }
-
-        // Stun Electrical Sparks
-        if (isStun) {
-            val sparkOffset1 = Offset(droneCenter.x - 12f, droneCenter.y - 10f)
-            val sparkOffset2 = Offset(droneCenter.x + 12f, droneCenter.y + 10f)
-            drawScope.drawCircle(color = CyberAmberWarning, radius = 4f, center = sparkOffset1)
-            drawScope.drawCircle(color = Color.White, radius = 2f, center = sparkOffset1)
-            drawScope.drawCircle(color = CyberAmberWarning, radius = 4f, center = sparkOffset2)
+            drawScope.drawLine(
+                color = CyberCyanAccent.copy(alpha = 0.6f),
+                start = Offset(sx, sy),
+                end = Offset(ex, ey),
+                strokeWidth = 2f
+            )
         }
     }
-
-    fun findTileAtScreenPoint(
-        tapPoint: Offset,
-        level: LevelData,
-        camera: Camera3D,
-        width: Float,
-        height: Float
-    ): LevelTile? {
-        val centerX = width / 2f + camera.panX
-        val centerY = height / 2f + camera.panY
-
-        val baseTileSize = (minOf(width, height) / (level.gridWidth + 3)) * camera.zoom
-        val tileW = baseTileSize
-        val tileH = baseTileSize * camera.pitchRatio
-        val tileDepthZ = baseTileSize * 0.45f
-
-        val yawRad = (camera.yawDegrees * PI / 180.0).toFloat()
-        val cosYaw = cos(yawRad)
-        val sinYaw = sin(yawRad)
-
-        val centerGridX = (level.gridWidth - 1) / 2f
-        val centerGridY = (level.gridHeight - 1) / 2f
-
-        fun project(x: Float, y: Float, z: Float): Offset {
-            val relX = x - centerGridX
-            val relY = y - centerGridY
-            val rotX = relX * cosYaw - relY * sinYaw
-            val rotY = relX * sinYaw + relY * cosYaw
-            val sx = centerX + (rotX - rotY) * (tileW * 0.72f)
-            val sy = centerY + (rotX + rotY) * (tileH * 0.72f) - (z * tileDepthZ)
-            return Offset(sx, sy)
-        }
-
-        return level.tiles.minByOrNull { tile ->
-            val p = project(tile.x.toFloat(), tile.y.toFloat(), tile.z.toFloat())
-            (p.x - tapPoint.x) * (p.x - tapPoint.x) + (p.y - tapPoint.y) * (p.y - tapPoint.y)
-        }?.takeIf { tile ->
-            val p = project(tile.x.toFloat(), tile.y.toFloat(), tile.z.toFloat())
-            val distSq = (p.x - tapPoint.x) * (p.x - tapPoint.x) + (p.y - tapPoint.y) * (p.y - tapPoint.y)
-            distSq < (tileW * 0.65f) * (tileW * 0.65f)
-        }
-    }
-
-    private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 }
