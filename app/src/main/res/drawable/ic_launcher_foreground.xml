@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="54"
+        android:translateY="54">
+        <!-- Isometric 3D Cyber Cube Top Face -->
+        <path
+            android:fillColor="#00E599"
+            android:pathData="M 0,-24 L 21,-12 L 0,0 L -21,-12 Z" />
+        <!-- Isometric 3D Left Face -->
+        <path
+            android:fillColor="#00B377"
+            android:pathData="M -21,-12 L 0,0 L 0,24 L -21,12 Z" />
+        <!-- Isometric 3D Right Face -->
+        <path
+            android:fillColor="#008055"
+            android:pathData="M 0,0 L 21,-12 L 21,12 L 0,24 Z" />
+        <!-- Glowing neon puzzle circuit paths on top face -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.5"
+            android:pathData="M 0,-18 L 12,-11 L 0,-4 L -12,-11 Z" />
+        <path
+            android:strokeColor="#E8FDF5"
+            android:strokeWidth="1.2"
+            android:pathData="M 0,-18 L 0,-4" />
+        <!-- Floating neon nodes -->
+        <path
+            android:fillColor="#66FFC2"
+            android:pathData="M -26,-2 M -28,-2 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+        <path
+            android:fillColor="#66FFC2"
+            android:pathData="M 26,-2 M 24,-2 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+        <path
+            android:fillColor="#66FFC2"
+            android:pathData="M 0,-28 M -2,-28 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+    </group>
+</vector>
