@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,9 +68,12 @@ import kotlinx.coroutines.delay
 fun MazeBaseScreen(
     buildings: List<MazeBuilding>,
     userBits: Int,
+    aiBaseAudit: String,
+    isAuditing: Boolean,
     onPlaceBuilding: (DefenseType, Int, Int) -> Unit,
     onRemoveBuilding: (Int, Int) -> Unit,
-    onSimulateDefense: () -> Unit
+    onSimulateDefense: () -> Unit,
+    onRequestAudit: () -> Unit
 ) {
     val renderer = remember { SiegeRenderer() }
     var animTicks by remember { mutableLongStateOf(0L) }
@@ -124,16 +129,56 @@ fun MazeBaseScreen(
                         )
                     }
 
-                    CyberPillButton(
-                        text = "TEST DEFENSE",
-                        icon = Icons.Default.PlayArrow,
-                        onClick = onSimulateDefense,
-                        isPrimary = true
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CyberPillButton(
+                            text = if (isAuditing) "AUDITING..." else "AI AUDIT",
+                            icon = Icons.Default.AutoAwesome,
+                            onClick = onRequestAudit,
+                            enabled = !isAuditing,
+                            isPrimary = false
+                        )
+
+                        CyberPillButton(
+                            text = "TEST DEFENSE",
+                            icon = Icons.Default.PlayArrow,
+                            onClick = onSimulateDefense,
+                            isPrimary = true
+                        )
+                    }
                 }
             }
 
-            // 2. Interactive 8x8 Grid Canvas
+            // 2. AI Security Audit Banner (shows LLM defense feedback if generated)
+            if (aiBaseAudit.isNotBlank()) {
+                CyberCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = Color(0xFF061A13),
+                    borderColor = CyberCyanAccent.copy(alpha = 0.5f),
+                    contentPadding = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = CyberCyanAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = aiBaseAudit,
+                            color = CyberMintLight,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+
+            // 3. Interactive 8x8 Grid Canvas
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -187,7 +232,7 @@ fun MazeBaseScreen(
                 }
             }
 
-            // 3. Building Palette
+            // 4. Building Palette (Clean, Uniform Heights & Crisp Text)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = "SELECT BUILDING TO PLACE:",
@@ -202,46 +247,52 @@ fun MazeBaseScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val paletteItems = listOf(
-                        DefenseType.NEON_WALL,
-                        DefenseType.LASER_TURRET,
-                        DefenseType.TESLA_PYLON,
-                        DefenseType.PLASMA_MORTAR,
-                        DefenseType.GLITCH_MINE
+                        DefenseType.NEON_WALL to "WALL",
+                        DefenseType.LASER_TURRET to "LASER",
+                        DefenseType.TESLA_PYLON to "TESLA",
+                        DefenseType.PLASMA_MORTAR to "MORTAR",
+                        DefenseType.GLITCH_MINE to "MINE"
                     )
 
-                    for (item in paletteItems) {
+                    for ((item, label) in paletteItems) {
                         val isSelected = !isEraseMode && selectedTool == item
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Color(0xFF0F3D2E) else Color(0xFF081C15))
                                 .border(
                                     width = if (isSelected) 2.dp else 1.dp,
                                     color = if (isSelected) CyberMintPrimary else CyberCardBorder,
-                                    shape = RoundedCornerShape(6.dp)
+                                    shape = RoundedCornerShape(8.dp)
                                 )
                                 .clickable {
                                     isEraseMode = false
                                     selectedTool = item
                                 }
-                                .padding(vertical = 6.dp, horizontal = 2.dp),
+                                .padding(horizontal = 2.dp, vertical = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
-                                    text = item.title.split(" ").last(),
+                                    text = label,
                                     color = if (isSelected) CyberMintLight else TextPrimaryDark,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                     maxLines = 1
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "${item.costBits}⚡",
                                     color = CyberCyanAccent,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -251,18 +302,19 @@ fun MazeBaseScreen(
                     Box(
                         modifier = Modifier
                             .weight(0.9f)
-                            .clip(RoundedCornerShape(6.dp))
+                            .height(52.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(if (isEraseMode) Color(0xFF3B1015) else Color(0xFF1E0A0E))
                             .border(
                                 width = if (isEraseMode) 2.dp else 1.dp,
                                 color = if (isEraseMode) CyberAmberWarning else Color(0xFF38151D),
-                                shape = RoundedCornerShape(6.dp)
+                                shape = RoundedCornerShape(8.dp)
                             )
                             .clickable {
                                 isEraseMode = true
                                 selectedTool = null
                             }
-                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                            .padding(horizontal = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -270,9 +322,9 @@ fun MazeBaseScreen(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Erase",
                                 tint = CyberAmberWarning,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(2.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "DEL",
                                 color = CyberAmberWarning,

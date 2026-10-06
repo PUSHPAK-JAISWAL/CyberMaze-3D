@@ -44,6 +44,51 @@ class AiLevelService {
         )
     }
 
+    suspend fun generateTacticalIntel(
+        settings: GameSettingsEntity,
+        sectorName: String,
+        difficulty: String,
+        turretsCount: Int,
+        coreHp: Float
+    ): String = withContext(Dispatchers.IO) {
+        if (settings.apiKey.isBlank()) {
+            return@withContext "🛰️ AI INTEL [$difficulty]: Target sector has $turretsCount defensive turrets and Core Server ($coreHp HP). Recommend deploying Byte Brawler to absorb laser fire at the south chokepoint, followed by Glitch Sprinters to breach the core once walls crumble."
+        }
+        try {
+            val systemPrompt = "You are the Cyber Syndicate Tactical Operator AI. Analyze the target enemy base and provide concise, sharp, high-tech tactical advice (under 60 words) on how to breach it, plus a brief enemy syndicate boss taunt."
+            val userPrompt = "Sector: $sectorName\nDifficulty: $difficulty\nDefenses: $turretsCount turrets/mortars\nCore Server HP: $coreHp\nProvide breach recommendations."
+            val response = callLlmProvider(settings, systemPrompt, userPrompt)
+            response.trim()
+        } catch (e: Exception) {
+            "🛰️ LOCAL INTEL [$difficulty]: $turretsCount defenses detected. Use EMP Surge to disable turrets before deploying Sprinters."
+        }
+    }
+
+    suspend fun auditBaseDefense(
+        settings: GameSettingsEntity,
+        wallCount: Int,
+        turretCount: Int,
+        coreProtected: Boolean
+    ): String = withContext(Dispatchers.IO) {
+        if (settings.apiKey.isBlank()) {
+            val rating = when {
+                wallCount >= 10 && turretCount >= 3 -> "GRADE: A+ (FORTRESS LEVEL)"
+                wallCount >= 6 -> "GRADE: B (SOLID CHOKEPOINTS)"
+                else -> "GRADE: C (VULNERABLE PERIMETER)"
+            }
+            return@withContext "🛡️ AI DEFENSE AUDIT: $rating\nAnalysis: $wallCount walls & $turretCount turrets placed. " +
+                    (if (coreProtected) "Core Server has funnel protection. Recommend placing Stealth Glitch Mines at main entryway." else "Warning: Core Server is exposed! Add walls around perimeter.")
+        }
+        try {
+            val systemPrompt = "You are an Elite Cyber Fortress Security Auditor AI. Evaluate the player's 8x8 maze base layout and output a defense grade (S, A, B, or C) with 2 concise tactical recommendations to improve survivability (under 60 words)."
+            val userPrompt = "Base Layout Stats: $wallCount Neon Walls, $turretCount Defensive Turrets (Lasers, Teslas, Mortars), Core Server Protected: $coreProtected. Audit this fortress."
+            val response = callLlmProvider(settings, systemPrompt, userPrompt)
+            response.trim()
+        } catch (e: Exception) {
+            "🛡️ AI AUDIT: GRADE B. Good turret placement. Place Glitch Mines near wall openings to punish enemy Sprinters."
+        }
+    }
+
     suspend fun testConnection(
         provider: String,
         apiKey: String,

@@ -120,6 +120,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _apiTestResult = MutableStateFlow<String?>(null)
     val apiTestResult: StateFlow<String?> = _apiTestResult.asStateFlow()
 
+    // AI Tactical Intel & Security Audits
+    private val _aiTacticalIntel = MutableStateFlow<String>("🛰️ AI OPERATOR: Tap 'SCAN INTEL' for tactical breach analysis.")
+    val aiTacticalIntel: StateFlow<String> = _aiTacticalIntel.asStateFlow()
+
+    private val _aiBaseAudit = MutableStateFlow<String>("")
+    val aiBaseAudit: StateFlow<String> = _aiBaseAudit.asStateFlow()
+
+    private val _isAuditingBase = MutableStateFlow<Boolean>(false)
+    val isAuditingBase: StateFlow<Boolean> = _isAuditingBase.asStateFlow()
+
+    // How to Play Dialog State
+    private val _isHowToPlayOpen = MutableStateFlow<Boolean>(false)
+    val isHowToPlayOpen: StateFlow<Boolean> = _isHowToPlayOpen.asStateFlow()
+
     // GitHub In-App Update Manager
     val updateManager = com.example.update.UpdateManager(application, viewModelScope)
     val updateState = updateManager.updateState
@@ -201,6 +215,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectTab(tab: AppNavTab) {
         _currentTab.value = tab
+    }
+
+    fun openHowToPlay() {
+        _isHowToPlayOpen.value = true
+        triggerHaptic(longVibe = false)
+    }
+
+    fun closeHowToPlay() {
+        _isHowToPlayOpen.value = false
+    }
+
+    fun requestTacticalIntel() {
+        viewModelScope.launch {
+            val state = raidBattleState.value
+            val turrets = state.buildings.count { !it.type.isWall && !it.type.isCore }
+            val core = state.buildings.find { it.type == DefenseType.CORE_SERVER }
+            val coreHp = core?.currentHp ?: 1000f
+
+            _aiTacticalIntel.value = "🛰️ Querying Syndicate Recon Satellite..."
+            val intel = aiService.generateTacticalIntel(
+                settings = _settings.value,
+                sectorName = state.sectorName,
+                difficulty = state.sectorDifficulty,
+                turretsCount = turrets,
+                coreHp = coreHp
+            )
+            _aiTacticalIntel.value = intel
+            triggerHaptic(longVibe = false)
+        }
+    }
+
+    fun requestBaseAudit() {
+        viewModelScope.launch {
+            _isAuditingBase.value = true
+            val buildings = playerBase.value
+            val walls = buildings.count { it.type == DefenseType.NEON_WALL }
+            val turrets = buildings.count { !it.type.isWall && !it.type.isCore }
+            val coreProtected = walls >= 6
+
+            _aiBaseAudit.value = "🔍 Neural Defense Auditor scanning maze perimeter..."
+            val audit = aiService.auditBaseDefense(
+                settings = _settings.value,
+                wallCount = walls,
+                turretCount = turrets,
+                coreProtected = coreProtected
+            )
+            _aiBaseAudit.value = audit
+            _isAuditingBase.value = false
+            triggerHaptic(longVibe = true)
+        }
     }
 
     // Raid Actions

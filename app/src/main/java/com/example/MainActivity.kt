@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SportsEsports
@@ -61,6 +62,7 @@ import com.example.data.model.RadarNode
 import com.example.data.sensor.MotionTelemetry
 import com.example.ui.AppNavTab
 import com.example.ui.MainViewModel
+import com.example.ui.components.HowToPlayDialog
 import com.example.ui.components.UpdateDialog
 import com.example.ui.screens.MazeBaseScreen
 import com.example.ui.screens.OutdoorRadarScreen
@@ -110,6 +112,11 @@ fun CyberMazeApp(viewModel: MainViewModel) {
     val apiTestResult by viewModel.apiTestResult.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
 
+    val aiTacticalIntel by viewModel.aiTacticalIntel.collectAsStateWithLifecycle()
+    val aiBaseAudit by viewModel.aiBaseAudit.collectAsStateWithLifecycle()
+    val isAuditingBase by viewModel.isAuditingBase.collectAsStateWithLifecycle()
+    val isHowToPlayOpen by viewModel.isHowToPlayOpen.collectAsStateWithLifecycle()
+
     // In-App GitHub Update Dialog
     UpdateDialog(
         updateState = updateState,
@@ -117,6 +124,12 @@ fun CyberMazeApp(viewModel: MainViewModel) {
         onInstallNow = { file -> viewModel.installDownloadedApk(file) },
         onSaveToDownloads = { file -> viewModel.saveUpdateToDownloads(file) },
         onDismiss = { viewModel.dismissUpdateDialog() }
+    )
+
+    // How to Play Manual Dialog
+    HowToPlayDialog(
+        isOpen = isHowToPlayOpen,
+        onDismiss = { viewModel.closeHowToPlay() }
     )
 
     // Back handler: return to Raid tab
@@ -223,7 +236,10 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         telemetry = telemetry,
                         savedLevels = savedLevels,
                         settings = settings,
-                        apiTestResult = apiTestResult
+                        apiTestResult = apiTestResult,
+                        aiTacticalIntel = aiTacticalIntel,
+                        aiBaseAudit = aiBaseAudit,
+                        isAuditingBase = isAuditingBase
                     )
                 }
             }
@@ -253,6 +269,18 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                             }
                         },
                         actions = {
+                            // How to Play Help Button
+                            IconButton(
+                                onClick = { viewModel.openHowToPlay() },
+                                modifier = Modifier.testTag("appbar_how_to_play")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.HelpOutline,
+                                    contentDescription = "How to Play Guide",
+                                    tint = CyberCyanAccent
+                                )
+                            }
+
                             // Currency & Trophies Pill
                             Box(
                                 modifier = Modifier
@@ -391,7 +419,10 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         telemetry = telemetry,
                         savedLevels = savedLevels,
                         settings = settings,
-                        apiTestResult = apiTestResult
+                        apiTestResult = apiTestResult,
+                        aiTacticalIntel = aiTacticalIntel,
+                        aiBaseAudit = aiBaseAudit,
+                        isAuditingBase = isAuditingBase
                     )
                 }
             }
@@ -413,25 +444,33 @@ private fun ScreenContent(
     telemetry: MotionTelemetry,
     savedLevels: List<LevelEntity>,
     settings: GameSettingsEntity,
-    apiTestResult: String?
+    apiTestResult: String?,
+    aiTacticalIntel: String,
+    aiBaseAudit: String,
+    isAuditingBase: Boolean
 ) {
     when (currentTab) {
         AppNavTab.RAID -> {
             RaidArenaScreen(
                 state = raidState,
+                aiTacticalIntel = aiTacticalIntel,
                 onDeployTroop = { type, x, y -> viewModel.deployTroop(type, x, y) },
                 onCastSpell = { spell, x, y -> viewModel.castSpell(spell, x, y) },
                 onStartRaidSector = { sector -> viewModel.startRaid(sector) },
-                onOpenBaseEditor = { viewModel.selectTab(AppNavTab.MAZE) }
+                onOpenBaseEditor = { viewModel.selectTab(AppNavTab.MAZE) },
+                onRequestTacticalIntel = { viewModel.requestTacticalIntel() }
             )
         }
         AppNavTab.MAZE -> {
             MazeBaseScreen(
                 buildings = playerBase,
                 userBits = userBits,
+                aiBaseAudit = aiBaseAudit,
+                isAuditing = isAuditingBase,
                 onPlaceBuilding = { type, x, y -> viewModel.placeBuilding(type, x, y) },
                 onRemoveBuilding = { x, y -> viewModel.removeBuilding(x, y) },
-                onSimulateDefense = { viewModel.startDefenseTest() }
+                onSimulateDefense = { viewModel.startDefenseTest() },
+                onRequestAudit = { viewModel.requestBaseAudit() }
             )
         }
         AppNavTab.DECK -> {

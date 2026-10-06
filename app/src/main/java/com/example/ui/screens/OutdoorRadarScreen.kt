@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.RocketLaunch
@@ -43,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
@@ -103,7 +103,7 @@ fun OutdoorRadarScreen(
     ) {
         CyberSectionHeader(
             title = "REAL-WORLD OUTDOOR RADAR",
-            subtitle = "Walk outside to scan physical darknet nodes, unlock satellite airstrikes, and harvest rare crates",
+            subtitle = "Physical motion tracker: walking outside uncovers Darknet Nodes & charges satellite strikes",
             badgeText = if (telemetry.isTracking) "PEDOMETER ACTIVE" else "PAUSED"
         )
 
@@ -138,7 +138,98 @@ fun OutdoorRadarScreen(
             )
         }
 
-        // 2. Animated Circular Cyber Radar Scanner
+        // 2. WHY GO OUTSIDE? Core Compulsion & Reward Incentives Card
+        CyberCard(
+            modifier = Modifier.fillMaxWidth(),
+            backgroundColor = Color(0xFF092017),
+            borderColor = CyberMintPrimary.copy(alpha = 0.6f),
+            contentPadding = 12.dp
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = CyberMintPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "WHY GO OUTSIDE? TACTICAL ADVANTAGES:",
+                        color = CyberMintLight,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "⚡ 2× Bits Per Step",
+                            color = CyberMintLight,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Physical steps directly fund troop and turret upgrades faster than raids.",
+                            color = TextSecondaryDark,
+                            fontSize = 10.sp
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "🛰️ Altitude Strike",
+                            color = CyberCyanAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Climbing hills/stairs charges the Orbital Ion Cannon for massive raid airstrikes.",
+                            color = TextSecondaryDark,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "💎 Exclusive Nanites",
+                            color = CyberPurpleNeon,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Quantum Nanites can ONLY be discovered at physical outdoor radar nodes.",
+                            color = TextSecondaryDark,
+                            fontSize = 10.sp
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "📦 Rare Blueprints",
+                            color = CyberAmberWarning,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Walk to high-tier Darknet Vaults to crack open guaranteed troop blueprints.",
+                            color = TextSecondaryDark,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Animated Circular Cyber Radar Scanner
         CyberCard(
             modifier = Modifier.fillMaxWidth(),
             backgroundColor = Color(0xFF04120D),
@@ -212,7 +303,7 @@ fun OutdoorRadarScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "SCANNING DARKNET SIGNALS...",
+                        text = "LIVE SENSOR RADAR SCANNING...",
                         color = CyberMintLight,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -230,9 +321,9 @@ fun OutdoorRadarScreen(
             }
         }
 
-        // 3. Outdoor Syndicate Nodes to Claim
+        // 4. Outdoor Syndicate Nodes to Claim
         Text(
-            text = "DETECTED OUTDOOR CACHES (STEP TO UNLOCK):",
+            text = "DETECTED OUTDOOR CACHES (PHYSICALLY WALK TO DECRYPT):",
             color = TextSecondaryDark,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
@@ -272,7 +363,7 @@ fun OutdoorRadarScreen(
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
-                                    text = "${node.distanceMeters}m away • Requires ${node.requiredSteps} steps",
+                                    text = "${node.distanceMeters}m physical distance • Requires ${node.requiredSteps} steps",
                                     color = TextSecondaryDark,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
@@ -320,7 +411,7 @@ fun OutdoorRadarScreen(
                             modifier = Modifier.fillMaxWidth().height(36.dp)
                         ) {
                             Text(
-                                text = "CLAIM REWARDS & BLUEPRINTS",
+                                text = "DECRYPT & CLAIM OUTDOOR LOOT",
                                 color = Color(0xFF003822),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,

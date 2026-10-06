@@ -23,11 +23,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
@@ -54,6 +57,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.RaidBattleState
@@ -78,10 +82,12 @@ import kotlinx.coroutines.delay
 @Composable
 fun RaidArenaScreen(
     state: RaidBattleState,
+    aiTacticalIntel: String,
     onDeployTroop: (type: TroopType, x: Float, y: Float) -> Unit,
     onCastSpell: (spell: TacticalSpell, x: Float, y: Float) -> Unit,
     onStartRaidSector: (Int) -> Unit,
-    onOpenBaseEditor: () -> Unit
+    onOpenBaseEditor: () -> Unit,
+    onRequestTacticalIntel: () -> Unit
 ) {
     val renderer = remember { SiegeRenderer() }
     var animTicks by remember { mutableLongStateOf(0L) }
@@ -149,7 +155,7 @@ fun RaidArenaScreen(
                         }
                     }
 
-                    // Timer & Sector Picker
+                    // Timer
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Timer,
@@ -169,7 +175,49 @@ fun RaidArenaScreen(
                 }
             }
 
-            // 2. Elixir Meter
+            // 2. AI Tactical Intel Banner (Direct LLM Integration showcase)
+            CyberCard(
+                modifier = Modifier.fillMaxWidth(),
+                backgroundColor = Color(0xFF051711),
+                borderColor = CyberCyanAccent.copy(alpha = 0.45f),
+                contentPadding = 6.dp
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = CyberCyanAccent,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = aiTacticalIntel,
+                            color = CyberMintLight,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    CyberPillButton(
+                        text = "AI INTEL",
+                        icon = Icons.Default.AutoAwesome,
+                        onClick = onRequestTacticalIntel,
+                        isPrimary = false
+                    )
+                }
+            }
+
+            // 3. Elixir Meter
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -200,7 +248,7 @@ fun RaidArenaScreen(
                 )
             }
 
-            // 3. Main Battle Canvas (Tap to deploy troops/spells!)
+            // 4. Main Battle Canvas (Tap to deploy troops/spells!)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -333,7 +381,7 @@ fun RaidArenaScreen(
                 }
             }
 
-            // 4. Bottom Troop Deployment Deck (Clash Royale Style cards)
+            // 5. Bottom Troop Deployment Deck (Clean, Uncrowded & Uniform Buttons)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "DEPLOY SQUAD (TAP CARD, THEN TAP MAP PERIMETER):",
@@ -352,9 +400,24 @@ fun RaidArenaScreen(
                         val isSelected = selectedTroop == t && selectedSpell == null
                         val canAfford = state.elixir >= t.elixirCost
 
+                        val shortLabel = when (t) {
+                            TroopType.BYTE_BRAWLER -> "BRAWLER"
+                            TroopType.GLITCH_SPRINTER -> "SPRINTER"
+                            TroopType.EMP_HACKER -> "EMP HACK"
+                            TroopType.PHANTOM_DRONE -> "PHANTOM"
+                        }
+
+                        val troopIcon = when (t) {
+                            TroopType.BYTE_BRAWLER -> Icons.Default.Shield
+                            TroopType.GLITCH_SPRINTER -> Icons.Default.DirectionsRun
+                            TroopType.EMP_HACKER -> Icons.Default.Bolt
+                            TroopType.PHANTOM_DRONE -> Icons.Default.Flight
+                        }
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .height(58.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Color(0xFF0F3D2E) else Color(0xFF081C15))
                                 .border(
@@ -366,28 +429,39 @@ fun RaidArenaScreen(
                                     selectedTroop = t
                                     selectedSpell = null
                                 }
-                                .padding(vertical = 6.dp, horizontal = 2.dp),
+                                .padding(horizontal = 4.dp, vertical = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = t.title.take(7),
-                                    color = if (isSelected) CyberMintLight else TextPrimaryDark,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 1
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.FlashOn,
+                                        imageVector = troopIcon,
                                         contentDescription = null,
-                                        tint = CyberCyanAccent,
-                                        modifier = Modifier.size(11.dp)
+                                        tint = if (isSelected) CyberMintLight else TextPrimaryDark,
+                                        modifier = Modifier.size(12.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = "${t.elixirCost}",
+                                        text = shortLabel,
+                                        color = if (isSelected) CyberMintLight else TextPrimaryDark,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFF07241E))
+                                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "${t.elixirCost} ⚡",
                                         color = CyberCyanAccent,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
@@ -399,7 +473,7 @@ fun RaidArenaScreen(
                     }
                 }
 
-                // Tactical Spells Row
+                // Tactical Spells Row (Consistent Height & Clean Labels)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -409,9 +483,22 @@ fun RaidArenaScreen(
                         val isSelected = selectedSpell == sp
                         val canAfford = state.elixir >= sp.elixirCost
 
+                        val spellLabel = when (sp) {
+                            TacticalSpell.EMP_SURGE -> "EMP SURGE"
+                            TacticalSpell.OVERCLOCK -> "OVERCLOCK"
+                            TacticalSpell.ORBITAL_BEAM -> "ORBITAL BEAM"
+                        }
+
+                        val spellIcon = when (sp) {
+                            TacticalSpell.EMP_SURGE -> Icons.Default.Bolt
+                            TacticalSpell.OVERCLOCK -> Icons.Default.FlashOn
+                            TacticalSpell.ORBITAL_BEAM -> Icons.Default.RocketLaunch
+                        }
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
+                                .height(42.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Color(0xFF18283B) else Color(0xFF07141E))
                                 .border(
@@ -423,16 +510,27 @@ fun RaidArenaScreen(
                                     selectedSpell = sp
                                     selectedTroop = null
                                 }
-                                .padding(vertical = 4.dp, horizontal = 4.dp),
+                                .padding(horizontal = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = spellIcon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) CyberCyanAccent else TextSecondaryDark,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = sp.title,
+                                    text = spellLabel,
                                     color = if (isSelected) CyberCyanAccent else TextSecondaryDark,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
