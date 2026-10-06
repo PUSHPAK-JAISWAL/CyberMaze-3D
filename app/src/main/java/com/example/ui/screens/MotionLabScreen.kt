@@ -277,30 +277,33 @@ fun MotionLabScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
                         onClick = { motionTracker.simulateSteps(45, 32f, 8f) },
                         shape = RoundedCornerShape(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         modifier = Modifier.weight(1f).testTag("sim_walk_steps")
                     ) {
-                        Text("+45 Steps", fontSize = 11.sp, color = CyberMintLight, fontFamily = FontFamily.Monospace)
+                        Text("+45 Steps", fontSize = 10.sp, color = CyberMintLight, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
                     }
 
                     OutlinedButton(
                         onClick = { motionTracker.simulateElevation(4.2f, 0f) },
                         shape = RoundedCornerShape(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         modifier = Modifier.weight(1f).testTag("sim_climb_elevation")
                     ) {
-                        Text("+4.2m Climb", fontSize = 11.sp, color = ElevationClimbColor, fontFamily = FontFamily.Monospace)
+                        Text("+4.2m Climb", fontSize = 10.sp, color = ElevationClimbColor, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
                     }
 
                     OutlinedButton(
                         onClick = { motionTracker.simulateElevation(0f, 2.5f) },
                         shape = RoundedCornerShape(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 8.dp),
                         modifier = Modifier.weight(1f).testTag("sim_drop_depression")
                     ) {
-                        Text("-2.5m Pit", fontSize = 11.sp, color = DepressionDropColor, fontFamily = FontFamily.Monospace)
+                        Text("-2.5m Pit", fontSize = 10.sp, color = DepressionDropColor, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
                     }
                 }
             }

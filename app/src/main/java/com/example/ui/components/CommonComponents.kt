@@ -9,15 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,13 +26,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.CyberBackgroundDark
 import com.example.ui.theme.CyberCardBorder
 import com.example.ui.theme.CyberMintContainer
-import com.example.ui.theme.CyberMintDark
 import com.example.ui.theme.CyberMintLight
 import com.example.ui.theme.CyberMintOnContainer
 import com.example.ui.theme.CyberMintPrimary
@@ -49,7 +46,8 @@ fun CyberCard(
     modifier: Modifier = Modifier,
     backgroundColor: Color = CyberSurfaceCard,
     borderColor: Color = CyberCardBorder,
-    cornerRadius: Dp = 20.dp,
+    cornerRadius: Dp = 16.dp,
+    contentPadding: Dp = 14.dp,
     content: @Composable () -> Unit
 ) {
     Box(
@@ -57,7 +55,7 @@ fun CyberCard(
             .clip(RoundedCornerShape(cornerRadius))
             .background(backgroundColor)
             .border(1.dp, borderColor, RoundedCornerShape(cornerRadius))
-            .padding(16.dp)
+            .padding(contentPadding)
     ) {
         content()
     }
@@ -71,12 +69,15 @@ fun CyberPillButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     testTag: String = "cyber_pill_button",
-    isPrimary: Boolean = true
+    isPrimary: Boolean = true,
+    horizontalPadding: Dp = 10.dp,
+    verticalPadding: Dp = 8.dp,
+    fontSize: TextUnit = 11.sp
 ) {
     val bgBrush = if (isPrimary) {
         Brush.horizontalGradient(listOf(CyberMintPrimary, CyberMintLight))
     } else {
-        Brush.horizontalGradient(listOf(CyberSurfaceCard, CyberSurfaceCard))
+        Brush.horizontalGradient(listOf(Color(0xFF133B2C), Color(0xFF133B2C)))
     }
     val contentColor = if (isPrimary) Color(0xFF003822) else CyberMintLight
     val borderColor = if (isPrimary) CyberMintLight else CyberCardBorder
@@ -84,11 +85,11 @@ fun CyberPillButton(
     Box(
         modifier = modifier
             .testTag(testTag)
-            .clip(RoundedCornerShape(32.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(if (enabled) bgBrush else Brush.linearGradient(listOf(Color(0xFF1E2F28), Color(0xFF1E2F28))))
-            .border(1.dp, if (enabled) borderColor else Color.Transparent, RoundedCornerShape(32.dp))
+            .border(1.dp, if (enabled) borderColor else Color.Transparent, RoundedCornerShape(20.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -100,17 +101,19 @@ fun CyberPillButton(
                     imageVector = icon,
                     contentDescription = null,
                     tint = if (enabled) contentColor else TextMutedDark,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(15.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
             }
             Text(
                 text = text,
                 color = if (enabled) contentColor else TextMutedDark,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
+                fontSize = fontSize,
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 0.5.sp
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -129,7 +132,8 @@ fun CyberMetricBadge(
         modifier = modifier,
         backgroundColor = Color(0xFF0C241B),
         borderColor = accentColor.copy(alpha = 0.35f),
-        cornerRadius = 16.dp
+        cornerRadius = 14.dp,
+        contentPadding = 10.dp
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -137,7 +141,7 @@ fun CyberMetricBadge(
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(accentColor.copy(alpha = 0.15f))
                     .border(1.dp, accentColor.copy(alpha = 0.4f), CircleShape),
@@ -147,32 +151,34 @@ fun CyberMetricBadge(
                     imageVector = icon,
                     contentDescription = title,
                     tint = accentColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = title.uppercase(),
                     color = TextSecondaryDark,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = 0.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = value,
                         color = TextPrimaryDark,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                     if (unit.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = unit,
                             color = accentColor,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -194,33 +200,36 @@ fun CyberSectionHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
                 text = title,
                 color = TextPrimaryDark,
-                fontSize = 18.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 0.5.sp
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     color = TextSecondaryDark,
-                    fontSize = 12.sp
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp
                 )
             }
         }
         if (badgeText != null) {
+            Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(CyberMintContainer)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
                     text = badgeText,
                     color = CyberMintOnContainer,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )

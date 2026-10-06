@@ -150,31 +150,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Dynamic Enemy Behavior Loop (runs every 3.5 seconds)
+        // Dynamic Enemy Tactical Comms (runs periodically for radio chatter & LLM telemetry)
         enemyAiLoopJob?.cancel()
         enemyAiLoopJob = viewModelScope.launch {
             var turn = 0
             while (isActive) {
-                delay(3500)
+                delay(5000)
                 val current = gameState.value
-                if (!current.isGameOver && !current.isVictory && current.currentLevel.enemies.isNotEmpty()) {
+                if (_settings.value.dynamicAiEnemyEnabled && !current.isGameOver && !current.isVictory && current.currentLevel.enemies.isNotEmpty()) {
                     turn++
-                    val updatedEnemies = current.currentLevel.enemies.map { enemy ->
-                        val (newPos, dialogue) = aiService.queryEnemyTacticalBehavior(
+                    try {
+                        val leadEnemy = current.currentLevel.enemies.first()
+                        val (_, dialogue) = aiService.queryEnemyTacticalBehavior(
                             _settings.value,
-                            enemy,
+                            leadEnemy,
                             current.playerPos,
                             turn
                         )
-                        enemy.copy(x = newPos.x, y = newPos.y, z = newPos.z, lastActionText = dialogue)
+                        val updated = current.currentLevel.enemies.mapIndexed { i, e ->
+                            if (i == 0) e.copy(lastActionText = dialogue) else e
+                        }
+                        gameSession.updateEnemyPositions(updated) {}
+                        gameState.value = gameSession.state.value
+                    } catch (_: Exception) {
+                        // Keep current positions smoothly
                     }
-                    gameSession.updateEnemyPositions(updatedEnemies) {
-                        triggerHaptic(longVibe = true)
-                    }
-                    gameState.value = gameSession.state.value
                 }
             }
         }
+    }
+
+    fun stepTowardAdjacentTile(targetX: Int, targetY: Int) {
+        gameSession.stepTowardAdjacentTile(
+            targetX = targetX,
+            targetY = targetY,
+            onStepSuccess = { triggerHaptic(longVibe = false) },
+            onEncounter = { triggerHaptic(longVibe = true) }
+        )
+        gameState.value = gameSession.state.value
     }
 
     fun movePlayer(direction: Direction) {
@@ -186,16 +199,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         gameState.value = gameSession.state.value
     }
 
-    fun jumpAscendClimb() {
-        gameSession.jumpAscendClimb()
+    fun jumpVault() {
+        gameSession.jumpVault()
         gameState.value = gameSession.state.value
         triggerHaptic(longVibe = false)
     }
 
-    fun hackTerminal() {
-        gameSession.hackTerminal()
+    fun triggerEmpBlast() {
+        gameSession.triggerEmpBlast {
+            triggerHaptic(longVibe = true)
+        }
+        gameState.value = gameSession.state.value
+    }
+
+    fun activateCloak() {
+        gameSession.activateCloak()
         gameState.value = gameSession.state.value
         triggerHaptic(longVibe = false)
+    }
+
+    fun openTerminalCipher() {
+        gameSession.openTerminalCipher()
+        gameState.value = gameSession.state.value
+    }
+
+    fun solveCipherSuccess() {
+        gameSession.solveCipherSuccess()
+        gameState.value = gameSession.state.value
+        triggerHaptic(longVibe = true)
+    }
+
+    fun closeCipherModal() {
+        gameSession.closeCipherModal()
+        gameState.value = gameSession.state.value
     }
 
     fun triggerRadarPing() {
@@ -206,6 +242,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rotateCamera(deltaDegrees: Float) {
         gameSession.rotateCamera(deltaDegrees)
+        gameState.value = gameSession.state.value
+    }
+
+    fun setCameraPreset(pitchRatio: Float, yaw: Float) {
+        gameSession.setCameraPreset(pitchRatio, yaw)
         gameState.value = gameSession.state.value
     }
 

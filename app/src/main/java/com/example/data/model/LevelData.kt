@@ -6,16 +6,17 @@ enum class TileType {
     DEPRESSION_PIT,
     WALL,
     LASER_GATE,
+    PRESSURE_SWITCH,
     TERMINAL,
     POWER_CORE,
     EXIT_PORTAL
 }
 
 enum class EnemyType {
-    HUNTER,    // Actively tracks player coordinates
-    SENTINEL,  // Defends high elevation platforms, fires pulse lasers
-    PHANTOM,   // Glitches/teleports across depression zones
-    STALKER    // Patrols corridors and flanks
+    HUNTER,    // Actively tracks player coordinates when alert
+    SENTINEL,  // Defends high elevation platforms with sweeping sensor beam
+    PHANTOM,   // Teleports through depression zones
+    STALKER    // Corridors & flank ambush drone
 }
 
 data class Point3D(
@@ -30,7 +31,8 @@ data class LevelTile(
     val z: Int = 0,
     val type: TileType = TileType.FLOOR,
     var isCollected: Boolean = false,
-    var isDeactivated: Boolean = false
+    var isDeactivated: Boolean = false,
+    var isActivated: Boolean = false
 )
 
 data class EnemyData(
@@ -44,9 +46,13 @@ data class EnemyData(
     val maxHp: Int = 100,
     val aggression: Float = 0.5f,
     val behaviorDescription: String = "Patrolling sector",
-    var lastActionText: String = "Scanning for intruders...",
-    var patrolWaypoints: List<Point3D> = emptyList(),
-    var currentWaypointIndex: Int = 0
+    var lastActionText: String = "Scanning sector...",
+    var isAlerted: Boolean = false,
+    var isStunned: Boolean = false,
+    var stunRemainingTurns: Int = 0,
+    var visionRange: Int = 2,
+    var facingDx: Int = 0,
+    var facingDy: Int = 1
 )
 
 data class TerminalData(
@@ -57,7 +63,8 @@ data class TerminalData(
     val requiredCores: Int = 1,
     var isUnlocked: Boolean = false,
     val securityLevel: Int = 1,
-    val puzzlePrompt: String = "DECRYPT CYBER CIPHER"
+    val puzzlePrompt: String = "CYBER CIPHER PROTOCOL",
+    val cipherTargets: List<Int> = listOf(3, 1, 2)
 )
 
 data class LevelData(
@@ -72,9 +79,10 @@ data class LevelData(
     val playerSpawn: Point3D,
     val exitPortal: Point3D,
     val totalCoresNeeded: Int = 3,
+    val parMoves: Int = 24,
     val sourceElevationGain: Float = 0f,
     val sourceDepression: Float = 0f,
     val sourceSteps: Int = 0,
     val sourceDistance: Float = 0f,
-    val aiBriefing: String = "Cyber-grid reconstructed from biological motion telemetry."
+    val aiBriefing: String = "Neural labyrinth synthesized from spatial telemetry."
 )

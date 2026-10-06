@@ -373,10 +373,17 @@ private fun ScreenContent(
             GameScreen(
                 state = gameState,
                 onMove = { dir -> viewModel.movePlayer(dir) },
-                onJumpAscend = { viewModel.jumpAscendClimb() },
-                onHack = { viewModel.hackTerminal() },
+                onStepTowardTile = { x, y -> viewModel.stepTowardAdjacentTile(x, y) },
+                onJumpVault = { viewModel.jumpVault() },
+                onEmpBlast = { viewModel.triggerEmpBlast() },
+                onCloak = { viewModel.activateCloak() },
+                onOpenCipher = { viewModel.openTerminalCipher() },
+                onSolveCipher = { viewModel.solveCipherSuccess() },
+                onCloseCipher = { viewModel.closeCipherModal() },
                 onRadarPing = { viewModel.triggerRadarPing() },
                 onRotateCamera = { delta -> viewModel.rotateCamera(delta) },
+                onSetCameraPreset = { pitch, yaw -> viewModel.setCameraPreset(pitch, yaw) },
+                onSetCameraZoom = { zoom -> viewModel.setCameraZoom(zoom) },
                 onRestart = { viewModel.restartCurrentLevel() },
                 onOpenMotionLab = { viewModel.selectTab(AppNavTab.MOTION_LAB) }
             )
