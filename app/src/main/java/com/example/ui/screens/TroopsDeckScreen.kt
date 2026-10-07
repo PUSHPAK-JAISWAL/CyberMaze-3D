@@ -207,7 +207,7 @@ fun TroopsDeckScreen(
                         // Level Badge
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .background(if (card.isTroop) Color(0xFF0C3829) else Color(0xFF1B2E3D))
                                 .border(1.5.dp, if (card.isTroop) CyberMintPrimary else CyberCyanAccent, CircleShape),
@@ -222,23 +222,27 @@ fun TroopsDeckScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 Text(
                                     text = typeTitle,
                                     color = TextPrimaryDark,
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (card.isTroop) "${elixirCost}⚡" else "DEFENSE",
                                     color = CyberCyanAccent,
                                     fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    softWrap = false
                                 )
                             }
                             Spacer(modifier = Modifier.height(2.dp))
@@ -246,12 +250,13 @@ fun TroopsDeckScreen(
                                 text = desc,
                                 color = TextSecondaryDark,
                                 fontSize = 11.sp,
-                                maxLines = 2
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     // Upgrade Button
                     Button(
@@ -261,7 +266,8 @@ fun TroopsDeckScreen(
                             containerColor = CyberMintPrimary,
                             disabledContainerColor = Color(0xFF15261F)
                         ),
-                        shape = RoundedCornerShape(6.dp)
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -270,13 +276,14 @@ fun TroopsDeckScreen(
                                 tint = if (canUpgrade) Color(0xFF003822) else TextMutedDark,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "${card.upgradeCostBits}⚡",
                                 color = if (canUpgrade) Color(0xFF003822) else TextMutedDark,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
+                                softWrap = false
                             )
                         }
                     }

@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.RadarNode
@@ -346,7 +347,10 @@ fun OutdoorRadarScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Icon(
                                 imageVector = if (node.isClaimed) Icons.Default.CheckCircle else if (isUnlocked) Icons.Default.CardGiftcard else Icons.Default.Lock,
                                 contentDescription = null,
@@ -358,18 +362,22 @@ fun OutdoorRadarScreen(
                                 Text(
                                     text = node.title,
                                     color = TextPrimaryDark,
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "${node.distanceMeters}m physical distance • Requires ${node.requiredSteps} steps",
+                                    text = "${node.distanceMeters}m • ${node.requiredSteps} steps",
                                     color = TextSecondaryDark,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         // Rewards
                         Column(horizontalAlignment = Alignment.End) {
@@ -378,13 +386,15 @@ fun OutdoorRadarScreen(
                                 color = CyberCyanAccent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
+                                softWrap = false
                             )
                             Text(
                                 text = node.blueprintReward,
                                 color = CyberAmberWarning,
                                 fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace
+                                fontFamily = FontFamily.Monospace,
+                                softWrap = false
                             )
                         }
                     }

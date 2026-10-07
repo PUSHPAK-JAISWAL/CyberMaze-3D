@@ -85,6 +85,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _trophies = MutableStateFlow(120)
     val trophies: StateFlow<Int> = _trophies.asStateFlow()
 
+    // Sector / Level Progression
+    private val _currentSector = MutableStateFlow(1)
+    val currentSector: StateFlow<Int> = _currentSector.asStateFlow()
+
+    private val _maxUnlockedSector = MutableStateFlow(1)
+    val maxUnlockedSector: StateFlow<Int> = _maxUnlockedSector.asStateFlow()
+
     // 3. Card Deck (Troops & Defenses)
     private val _cards = MutableStateFlow(
         listOf(
@@ -183,6 +190,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             val st = siegeEngine.raidState.value
                             _userBits.value += st.bitsLooted
                             _trophies.value += st.trophiesWon
+
+                            // Unlock the next sector level upon victory
+                            val nextSec = _currentSector.value + 1
+                            if (nextSec > _maxUnlockedSector.value) {
+                                _maxUnlockedSector.value = nextSec.coerceAtMost(4)
+                            }
                         }
                     }
                 )
@@ -289,6 +302,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startRaid(sectorIndex: Int = 1) {
+        _currentSector.value = sectorIndex
         siegeEngine.startRaidSector(sectorIndex)
         _currentTab.value = AppNavTab.RAID
     }

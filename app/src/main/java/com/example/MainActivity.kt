@@ -116,6 +116,8 @@ fun CyberMazeApp(viewModel: MainViewModel) {
     val aiBaseAudit by viewModel.aiBaseAudit.collectAsStateWithLifecycle()
     val isAuditingBase by viewModel.isAuditingBase.collectAsStateWithLifecycle()
     val isHowToPlayOpen by viewModel.isHowToPlayOpen.collectAsStateWithLifecycle()
+    val currentSector by viewModel.currentSector.collectAsStateWithLifecycle()
+    val maxUnlockedSector by viewModel.maxUnlockedSector.collectAsStateWithLifecycle()
 
     // In-App GitHub Update Dialog
     UpdateDialog(
@@ -239,7 +241,9 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         apiTestResult = apiTestResult,
                         aiTacticalIntel = aiTacticalIntel,
                         aiBaseAudit = aiBaseAudit,
-                        isAuditingBase = isAuditingBase
+                        isAuditingBase = isAuditingBase,
+                        currentSector = currentSector,
+                        maxUnlockedSector = maxUnlockedSector
                     )
                 }
             }
@@ -302,7 +306,7 @@ fun CyberMazeApp(viewModel: MainViewModel) {
 
                             if (currentTab == AppNavTab.RAID) {
                                 IconButton(
-                                    onClick = { viewModel.startRaid(1) },
+                                    onClick = { viewModel.startRaid(currentSector) },
                                     modifier = Modifier.testTag("appbar_restart_raid")
                                 ) {
                                     Icon(
@@ -422,7 +426,9 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         apiTestResult = apiTestResult,
                         aiTacticalIntel = aiTacticalIntel,
                         aiBaseAudit = aiBaseAudit,
-                        isAuditingBase = isAuditingBase
+                        isAuditingBase = isAuditingBase,
+                        currentSector = currentSector,
+                        maxUnlockedSector = maxUnlockedSector
                     )
                 }
             }
@@ -447,13 +453,17 @@ private fun ScreenContent(
     apiTestResult: String?,
     aiTacticalIntel: String,
     aiBaseAudit: String,
-    isAuditingBase: Boolean
+    isAuditingBase: Boolean,
+    currentSector: Int,
+    maxUnlockedSector: Int
 ) {
     when (currentTab) {
         AppNavTab.RAID -> {
             RaidArenaScreen(
                 state = raidState,
                 aiTacticalIntel = aiTacticalIntel,
+                currentSector = currentSector,
+                maxUnlockedSector = maxUnlockedSector,
                 onDeployTroop = { type, x, y -> viewModel.deployTroop(type, x, y) },
                 onCastSpell = { spell, x, y -> viewModel.castSpell(spell, x, y) },
                 onStartRaidSector = { sector -> viewModel.startRaid(sector) },

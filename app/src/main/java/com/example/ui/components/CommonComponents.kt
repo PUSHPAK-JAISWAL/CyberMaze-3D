@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -132,56 +133,56 @@ fun CyberMetricBadge(
         modifier = modifier,
         backgroundColor = Color(0xFF0C241B),
         borderColor = accentColor.copy(alpha = 0.35f),
-        cornerRadius = 14.dp,
-        contentPadding = 10.dp
+        cornerRadius = 12.dp,
+        contentPadding = 8.dp
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.15f))
-                    .border(1.dp, accentColor.copy(alpha = 0.4f), CircleShape),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
                     tint = accentColor,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = title.uppercase(),
                     color = TextSecondaryDark,
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 0.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Row(verticalAlignment = Alignment.Bottom) {
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = value,
+                    color = TextPrimaryDark,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (unit.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = value,
-                        color = TextPrimaryDark,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = unit,
+                        color = accentColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace
                     )
-                    if (unit.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = unit,
-                            color = accentColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
             }
         }

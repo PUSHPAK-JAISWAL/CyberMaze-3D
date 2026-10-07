@@ -135,14 +135,20 @@ fun MazeBaseScreen(
                             icon = Icons.Default.AutoAwesome,
                             onClick = onRequestAudit,
                             enabled = !isAuditing,
-                            isPrimary = false
+                            isPrimary = false,
+                            horizontalPadding = 8.dp,
+                            verticalPadding = 6.dp,
+                            fontSize = 10.sp
                         )
 
                         CyberPillButton(
                             text = "TEST DEFENSE",
                             icon = Icons.Default.PlayArrow,
                             onClick = onSimulateDefense,
-                            isPrimary = true
+                            isPrimary = true,
+                            horizontalPadding = 8.dp,
+                            verticalPadding = 6.dp,
+                            fontSize = 10.sp
                         )
                     }
                 }

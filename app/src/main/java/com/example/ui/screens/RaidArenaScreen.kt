@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +84,8 @@ import kotlinx.coroutines.delay
 fun RaidArenaScreen(
     state: RaidBattleState,
     aiTacticalIntel: String,
+    currentSector: Int = 1,
+    maxUnlockedSector: Int = 1,
     onDeployTroop: (type: TroopType, x: Float, y: Float) -> Unit,
     onCastSpell: (spell: TacticalSpell, x: Float, y: Float) -> Unit,
     onStartRaidSector: (Int) -> Unit,
@@ -94,7 +97,7 @@ fun RaidArenaScreen(
 
     var selectedTroop by remember { mutableStateOf<TroopType?>(TroopType.BYTE_BRAWLER) }
     var selectedSpell by remember { mutableStateOf<TacticalSpell?>(null) }
-    var selectedSectorIndex by remember { mutableStateOf(1) }
+    var selectedSectorIndex by remember(currentSector) { mutableIntStateOf(currentSector) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -114,63 +117,116 @@ fun RaidArenaScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 1. Top HUD (Sector Name, Stars, Destruction %, Timer)
+            // 1. Top HUD (Sector Name, Level Selector, Stars, Destruction %, Timer)
             CyberCard(
                 modifier = Modifier.fillMaxWidth(),
                 backgroundColor = Color(0xFF091F18),
                 borderColor = CyberMintPrimary.copy(alpha = 0.5f),
                 contentPadding = 8.dp
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = state.sectorName,
-                            color = CyberMintLight,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
                             Text(
-                                text = "DESTRUCTION: ${state.destructionPercent}%",
-                                color = if (state.destructionPercent >= 50) CyberMintPrimary else TextSecondaryDark,
-                                fontSize = 11.sp,
+                                text = state.sectorName,
+                                color = CyberMintLight,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            // 3 Stars Indicator
-                            for (s in 1..3) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = if (state.starsEarned >= s) CyberAmberWarning else Color(0xFF283B33),
-                                    modifier = Modifier.size(16.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "DESTRUCTION: ${state.destructionPercent}%",
+                                    color = if (state.destructionPercent >= 50) CyberMintPrimary else TextSecondaryDark,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
                                 )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                // 3 Stars Indicator
+                                for (s in 1..3) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = if (state.starsEarned >= s) CyberAmberWarning else Color(0xFF283B33),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
+                        }
+
+                        // Timer
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = if (state.timeRemainingSeconds < 20f) CyberLaserRed else CyberCyanAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${state.timeRemainingSeconds.toInt()}s",
+                                color = if (state.timeRemainingSeconds < 20f) CyberLaserRed else TextPrimaryDark,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
                     }
 
-                    // Timer
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            tint = if (state.timeRemainingSeconds < 20f) CyberLaserRed else CyberCyanAccent,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    // Sector / Level Progression Row (Selectable sectors 1 to 4)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "${state.timeRemainingSeconds.toInt()}s",
-                            color = if (state.timeRemainingSeconds < 20f) CyberLaserRed else TextPrimaryDark,
-                            fontSize = 15.sp,
+                            text = "SECTOR:",
+                            color = TextSecondaryDark,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
+                        for (sec in 1..4) {
+                            val isUnlocked = sec <= maxUnlockedSector
+                            val isCurrent = selectedSectorIndex == sec
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (isCurrent) CyberMintPrimary
+                                        else if (isUnlocked) Color(0xFF0F3227)
+                                        else Color(0xFF14201B)
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (isCurrent) CyberMintLight
+                                        else if (isUnlocked) CyberCardBorder
+                                        else Color(0xFF1B2B24),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .clickable(enabled = isUnlocked) {
+                                        selectedSectorIndex = sec
+                                        onStartRaidSector(sec)
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (isUnlocked) "LVL $sec" else "🔒 $sec",
+                                    color = if (isCurrent) Color(0xFF003822)
+                                    else if (isUnlocked) CyberMintLight
+                                    else TextMutedDark,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -212,7 +268,10 @@ fun RaidArenaScreen(
                         text = "AI INTEL",
                         icon = Icons.Default.AutoAwesome,
                         onClick = onRequestTacticalIntel,
-                        isPrimary = false
+                        isPrimary = false,
+                        horizontalPadding = 8.dp,
+                        verticalPadding = 6.dp,
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -361,12 +420,26 @@ fun RaidArenaScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
-                                    onClick = { onStartRaidSector(selectedSectorIndex) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = CyberMintPrimary),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("PLAY AGAIN", color = Color(0xFF003822), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                if (state.isVictory && selectedSectorIndex < 4) {
+                                    Button(
+                                        onClick = {
+                                            val next = selectedSectorIndex + 1
+                                            selectedSectorIndex = next
+                                            onStartRaidSector(next)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = CyberMintPrimary),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("NEXT LEVEL ➔", color = Color(0xFF003822), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = { onStartRaidSector(selectedSectorIndex) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = CyberMintPrimary),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("PLAY AGAIN", color = Color(0xFF003822), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
                                 }
                                 Button(
                                     onClick = onOpenBaseEditor,
