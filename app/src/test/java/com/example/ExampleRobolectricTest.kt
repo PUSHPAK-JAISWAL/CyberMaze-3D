@@ -57,7 +57,7 @@ class ExampleRobolectricTest {
         engine.startRaidSector(1)
 
         val initial = engine.raidState.value
-        assertEquals("Syndicate Sector: Neon Alley", initial.sectorName)
+        assertEquals("Sector 1: Neon Alley", initial.sectorName)
         assertTrue(initial.buildings.isNotEmpty())
 
         // Deploy a Byte Brawler at edge
@@ -65,6 +65,40 @@ class ExampleRobolectricTest {
         engine.deployTroop(TroopType.BYTE_BRAWLER, 1f, 1f, onDeployed = { deployed = true }, onFail = {})
         assertTrue(deployed)
         assertEquals(1, engine.raidState.value.troops.size)
+
+        // Test Level 8 generation
+        engine.startRaidSector(8)
+        assertEquals("Sector 8: Zero-Day Dark Citadel", engine.raidState.value.sectorName)
+        assertTrue(engine.raidState.value.buildings.size >= 8)
+
+        // Test Level 12 generation
+        engine.startRaidSector(12)
+        assertEquals("Sector 12: Cyber Overlord Nexus", engine.raidState.value.sectorName)
+        assertTrue(engine.raidState.value.buildings.size >= 12)
+    }
+
+    @Test
+    fun `siege engine handles pokemon go style nearby player base raid`() {
+        val engine = SiegeEngine()
+        val nearbyBase = com.example.data.model.NearbyPlayerBase(
+            id = "test_p1",
+            architectName = "Shadow_Walker",
+            rankTitle = "Apex",
+            distanceMeters = 30,
+            angleDegrees = 45f,
+            trophyCount = 500,
+            lootableBits = 300,
+            buildings = listOf(
+                com.example.data.model.MazeBuilding(1, DefenseType.CORE_SERVER, 4, 4, 1200f, 1200f),
+                com.example.data.model.MazeBuilding(2, DefenseType.LASER_TURRET, 3, 3, 300f, 300f)
+            )
+        )
+
+        engine.startNearbyPlayerRaid(nearbyBase)
+        val state = engine.raidState.value
+        assertTrue(state.sectorName.contains("Shadow_Walker"))
+        assertEquals(2, state.buildings.size)
+        assertFalse(state.battleEnded)
     }
 
     @Test

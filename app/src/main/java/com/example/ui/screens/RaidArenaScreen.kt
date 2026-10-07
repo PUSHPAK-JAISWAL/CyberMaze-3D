@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -178,9 +180,11 @@ fun RaidArenaScreen(
                         }
                     }
 
-                    // Sector / Level Progression Row (Selectable sectors 1 to 4)
+                    // Sector / Level Progression Row (Selectable sectors 1 to 12, with horizontal scrolling)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -191,7 +195,7 @@ fun RaidArenaScreen(
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
-                        for (sec in 1..4) {
+                        for (sec in 1..12) {
                             val isUnlocked = sec <= maxUnlockedSector
                             val isCurrent = selectedSectorIndex == sec
                             Box(
@@ -420,7 +424,7 @@ fun RaidArenaScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (state.isVictory && selectedSectorIndex < 4) {
+                                if (state.isVictory && selectedSectorIndex < 12) {
                                     Button(
                                         onClick = {
                                             val next = selectedSectorIndex + 1

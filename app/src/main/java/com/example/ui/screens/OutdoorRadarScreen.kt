@@ -26,8 +26,12 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SportsKabaddi
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.NearbyPlayerBase
 import com.example.data.model.RadarNode
 import com.example.data.sensor.MotionTelemetry
 import com.example.data.sensor.MotionTracker
@@ -63,6 +68,7 @@ import com.example.ui.theme.CyberAmberWarning
 import com.example.ui.theme.CyberBackgroundDark
 import com.example.ui.theme.CyberCardBorder
 import com.example.ui.theme.CyberCyanAccent
+import com.example.ui.theme.CyberLaserRed
 import com.example.ui.theme.CyberMintLight
 import com.example.ui.theme.CyberMintPrimary
 import com.example.ui.theme.CyberPurpleNeon
@@ -79,8 +85,10 @@ fun OutdoorRadarScreen(
     telemetry: MotionTelemetry,
     motionTracker: MotionTracker,
     radarNodes: List<RadarNode>,
+    nearbyBases: List<NearbyPlayerBase> = emptyList(),
     onClaimNode: (String) -> Unit,
     onTriggerReconDrone: () -> Unit,
+    onAttackNearbyBase: (String) -> Unit,
     onStartRaid: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -287,6 +295,19 @@ fun OutdoorRadarScreen(
                             drawCircle(color = blipColor, radius = 5.5f, center = blipPos)
                             drawCircle(color = blipColor.copy(alpha = 0.4f), radius = 9f, center = blipPos, style = Stroke(width = 1f))
                         }
+
+                        // Draw Radar Blips for Nearby Player Bases (Pokemon GO proximity markers)
+                        for (base in nearbyBases) {
+                            val blipRad = (base.angleDegrees * PI / 180f).toFloat()
+                            val distFactor = (base.distanceMeters / 600f).coerceIn(0.25f, 0.88f)
+                            val blipPos = Offset(
+                                center.x + (cos(blipRad) * maxR * distFactor),
+                                center.y + (sin(blipRad) * maxR * distFactor)
+                            )
+
+                            drawCircle(color = CyberLaserRed, radius = 6.5f, center = blipPos)
+                            drawCircle(color = CyberLaserRed.copy(alpha = 0.45f), radius = 11f, center = blipPos, style = Stroke(width = 1.5f))
+                        }
                     }
 
                     // Center user blip
@@ -423,6 +444,129 @@ fun OutdoorRadarScreen(
                             Text(
                                 text = "DECRYPT & CLAIM OUTDOOR LOOT",
                                 color = Color(0xFF003822),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Pokemon GO Proximity Player Bases: Nearby Players Detected in Physical Vicinity!
+        if (nearbyBases.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.SportsKabaddi,
+                    contentDescription = null,
+                    tint = CyberLaserRed,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "NEARBY PLAYERS IN PHYSICAL PROXIMITY (POKÉMON GO STYLE):",
+                    color = CyberLaserRed,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = "When other players running CyberMaze are physically near you, their custom CyberMazes ping your radar! Breach their fortress to loot their bits & trophies:",
+                color = TextSecondaryDark,
+                fontSize = 10.sp,
+                lineHeight = 14.sp
+            )
+
+            for (base in nearbyBases) {
+                CyberCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = Color(0xFF1F0B10),
+                    borderColor = CyberLaserRed.copy(alpha = 0.6f),
+                    contentPadding = 12.dp
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF3B121C)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = CyberLaserRed,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = base.architectName,
+                                        color = TextPrimaryDark,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    Text(
+                                        text = "${base.rankTitle} • ${base.distanceMeters}m away • ${base.trophyCount} 🏆",
+                                        color = TextSecondaryDark,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "LOOT: +${base.lootableBits}⚡",
+                                    color = CyberMintLight,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = "${base.buildings.size} Defenses",
+                                    color = CyberAmberWarning,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        // Attack Base Action Button
+                        Button(
+                            onClick = { onAttackNearbyBase(base.id) },
+                            colors = ButtonDefaults.buttonColors(containerColor = CyberLaserRed),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(38.dp)
+                                .testTag("attack_nearby_base_${base.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SportsKabaddi,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "INFILTRATE & ATTACK THIS PLAYER'S BASE",
+                                color = Color.White,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace

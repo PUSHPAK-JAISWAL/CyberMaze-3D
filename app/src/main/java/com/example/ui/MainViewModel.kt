@@ -16,6 +16,7 @@ import com.example.data.local.entities.MovementLogEntity
 import com.example.data.model.CardItem
 import com.example.data.model.DefenseType
 import com.example.data.model.MazeBuilding
+import com.example.data.model.NearbyPlayerBase
 import com.example.data.model.RaidBattleState
 import com.example.data.model.RadarNode
 import com.example.data.model.TacticalSpell
@@ -117,6 +118,73 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     val radarNodes: StateFlow<List<RadarNode>> = _radarNodes.asStateFlow()
 
+    // 5. Pokemon GO Proximity Player Bases (Nearby Syndicate Architects detected on Geo-Radar)
+    private val _nearbyPlayerBases = MutableStateFlow(
+        listOf(
+            NearbyPlayerBase(
+                id = "p1",
+                architectName = "Kira_Zero",
+                rankTitle = "Apex Syndicate",
+                distanceMeters = 42,
+                angleDegrees = 85f,
+                trophyCount = 480,
+                lootableBits = 350,
+                buildings = listOf(
+                    MazeBuilding(901, DefenseType.CORE_SERVER, 4, 4, 1500f, 1500f),
+                    MazeBuilding(902, DefenseType.NEON_WALL, 3, 2, 600f, 600f),
+                    MazeBuilding(903, DefenseType.NEON_WALL, 4, 2, 600f, 600f),
+                    MazeBuilding(904, DefenseType.NEON_WALL, 5, 2, 600f, 600f),
+                    MazeBuilding(905, DefenseType.NEON_WALL, 2, 4, 600f, 600f),
+                    MazeBuilding(906, DefenseType.NEON_WALL, 6, 4, 600f, 600f),
+                    MazeBuilding(907, DefenseType.LASER_TURRET, 3, 3, 400f, 400f),
+                    MazeBuilding(908, DefenseType.TESLA_PYLON, 5, 3, 380f, 380f),
+                    MazeBuilding(909, DefenseType.PLASMA_MORTAR, 4, 6, 420f, 420f),
+                    MazeBuilding(910, DefenseType.GLITCH_MINE, 4, 3, 80f, 80f)
+                )
+            ),
+            NearbyPlayerBase(
+                id = "p2",
+                architectName = "Ghost_Byte",
+                rankTitle = "Hacker Elite",
+                distanceMeters = 115,
+                angleDegrees = 195f,
+                trophyCount = 310,
+                lootableBits = 260,
+                buildings = listOf(
+                    MazeBuilding(911, DefenseType.CORE_SERVER, 4, 4, 1300f, 1300f),
+                    MazeBuilding(912, DefenseType.NEON_WALL, 3, 3, 500f, 500f),
+                    MazeBuilding(913, DefenseType.NEON_WALL, 5, 3, 500f, 500f),
+                    MazeBuilding(914, DefenseType.NEON_WALL, 3, 5, 500f, 500f),
+                    MazeBuilding(915, DefenseType.NEON_WALL, 5, 5, 500f, 500f),
+                    MazeBuilding(916, DefenseType.LASER_TURRET, 4, 2, 350f, 350f),
+                    MazeBuilding(917, DefenseType.TESLA_PYLON, 4, 6, 320f, 320f),
+                    MazeBuilding(918, DefenseType.GLITCH_MINE, 2, 4, 80f, 80f)
+                )
+            ),
+            NearbyPlayerBase(
+                id = "p3",
+                architectName = "Valkyrie_99",
+                rankTitle = "Cyber Sentinel",
+                distanceMeters = 240,
+                angleDegrees = 290f,
+                trophyCount = 590,
+                lootableBits = 520,
+                buildings = listOf(
+                    MazeBuilding(921, DefenseType.CORE_SERVER, 4, 4, 1800f, 1800f),
+                    MazeBuilding(922, DefenseType.NEON_WALL, 2, 2, 700f, 700f),
+                    MazeBuilding(923, DefenseType.NEON_WALL, 6, 2, 700f, 700f),
+                    MazeBuilding(924, DefenseType.NEON_WALL, 2, 6, 700f, 700f),
+                    MazeBuilding(925, DefenseType.NEON_WALL, 6, 6, 700f, 700f),
+                    MazeBuilding(926, DefenseType.PLASMA_MORTAR, 3, 3, 450f, 450f),
+                    MazeBuilding(927, DefenseType.PLASMA_MORTAR, 5, 3, 450f, 450f),
+                    MazeBuilding(928, DefenseType.LASER_TURRET, 3, 5, 420f, 420f),
+                    MazeBuilding(929, DefenseType.TESLA_PYLON, 5, 5, 400f, 400f)
+                )
+            )
+        )
+    )
+    val nearbyPlayerBases: StateFlow<List<NearbyPlayerBase>> = _nearbyPlayerBases.asStateFlow()
+
     // Generation State & Feedback
     private val _isGeneratingLevel = MutableStateFlow(false)
     val isGeneratingLevel: StateFlow<Boolean> = _isGeneratingLevel.asStateFlow()
@@ -194,7 +262,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             // Unlock the next sector level upon victory
                             val nextSec = _currentSector.value + 1
                             if (nextSec > _maxUnlockedSector.value) {
-                                _maxUnlockedSector.value = nextSec.coerceAtMost(4)
+                                _maxUnlockedSector.value = nextSec.coerceAtMost(12)
                             }
                         }
                     }
@@ -373,6 +441,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         triggerHaptic(longVibe = false)
+    }
+
+    // Attack nearby player's base (Pokemon GO style proximity attack)
+    fun attackNearbyPlayerBase(baseId: String) {
+        val base = _nearbyPlayerBases.value.find { it.id == baseId } ?: return
+        siegeEngine.startNearbyPlayerRaid(base)
+        _currentTab.value = AppNavTab.RAID
+        triggerHaptic(longVibe = true)
     }
 
     // Settings & BYOK

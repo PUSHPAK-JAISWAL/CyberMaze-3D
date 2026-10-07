@@ -255,8 +255,8 @@ private fun RaidsGuideSection() {
             )
 
             RuleItem(
-                title = "⭐ 5. Victory Conditions",
-                desc = "• 1 Star: Destroy 50% of enemy buildings.\n• 2 Stars: Destroy the Quantum Core Server.\n• 3 Stars: 100% Total Wipeout!\nEarn Neon Bits and Trophies to climb the syndicate leagues."
+                title = "⭐ 5. Victory Conditions & 12 Sectors",
+                desc = "• 1 Star: Destroy 50% of enemy buildings.\n• 2 Stars: Destroy the Quantum Core Server.\n• 3 Stars: 100% Total Wipeout!\nWinning unlocks the next sector level across 12 escalating campaigns: Neon Alley, Iron Bastion, Quantum Spire, Apex Citadel, Cryo-Vault, Plasma Reactor, Orbital Platform, Dark Citadel, Hyperion Fortress, Chrono Warp, Singularity Core, and Cyber Overlord Nexus!"
             )
         }
     }
@@ -338,7 +338,12 @@ private fun OutdoorRewardsSection() {
             )
 
             RuleItem(
-                title = "🕹️ 4. Testing Indoors or On Emulator?",
+                title = "⚔️ 4. Pokémon GO Proximity Player Base Attacks",
+                desc = "When another player with CyberMaze 3D is physically near you, their custom fortress base pings your Geo-Radar in red! Tap 'INFILTRATE & ATTACK THIS PLAYER'S BASE' to assault their custom maze and loot their Bits & Trophies!"
+            )
+
+            RuleItem(
+                title = "🕹️ 5. Testing Indoors or On Emulator?",
                 desc = "If you're on a computer emulator or staying inside, tap 'RECON DRONE (+150m)' in the Radar tab to simulate outdoor steps so you're never stuck."
             )
         }

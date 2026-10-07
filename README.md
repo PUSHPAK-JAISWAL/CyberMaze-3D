@@ -97,6 +97,7 @@ CyberMaze 3D actively incentivizes real-world physical activity through genuine 
 ```
 
 * **⛰️ Hill & Stair Climbing**: Climbing **+5 meters of vertical elevation** outside charges the **Orbital Ion Satellite**, granting free orbital airstrikes in raids!
+* **⚔️ Pokémon GO Proximity Player Base Raids**: When another player with CyberMaze is physically nearby, their custom base pings your Geo-Radar in red. Tap **"INFILTRATE & ATTACK THIS PLAYER'S BASE"** to infiltrate their defense maze, crack their Quantum Core, and loot their Bits & Trophies!
 * **🕹️ Indoor Testing**: For computer emulators or staying indoors, tap **"RECON DRONE (+150m)"** in the Radar tab to test features without blocking progression.
 
 ---
@@ -139,6 +140,26 @@ In-App Client Updates:
  3. InAppUpdateDownloader.kt: Foreground streaming download with live MB/s progress
  4. ApkPreflightValidator.kt: Verifies certificate signature matches installed app
  5. UpdateInstaller.kt: FileProvider intent triggers Android package installer
+```
+
+---
+
+## 🌐 React Introduction Website & GitHub Pages Deployment
+
+The project includes an **introduction website** built in **React 19 + Vite + Tailwind CSS** located in `/website`:
+* **Cyber Aesthetic Theme**: Mirrors the exact Cyber Mint and Neon palette of the game.
+* **12 Sectors Explorer**: Interactive overview of all 12 campaign levels and their hazards.
+* **Direct APK Download**: Prominent one-tap download button linking to the latest GitHub Releases APK asset.
+* **Continuous Deployment Workflow (`.github/workflows/deploy.yml`)**: Automatically builds the React application and deploys it to **GitHub Pages** on push to `main` whenever changes are made in `website/**`.
+
+```bash
+# Run website locally
+cd website
+npm install
+npm run dev
+
+# Build website production bundle
+npm run build
 ```
 
 ---

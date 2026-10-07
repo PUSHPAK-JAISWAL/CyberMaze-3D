@@ -157,16 +157,32 @@ class SiegeEngine {
     // Initialize a Syndicate Raid Infiltration Battle
     fun startRaidSector(sectorIndex: Int = 1) {
         val sectorName = when (sectorIndex) {
-            1 -> "Syndicate Sector: Neon Alley"
-            2 -> "Syndicate Sector: Iron Bastion"
-            3 -> "Syndicate Sector: Quantum Spire"
-            else -> "Syndicate Sector: Apex Citadel"
+            1 -> "Sector 1: Neon Alley"
+            2 -> "Sector 2: Iron Bastion"
+            3 -> "Sector 3: Quantum Spire"
+            4 -> "Sector 4: Apex Citadel"
+            5 -> "Sector 5: Sub-Zero Cryo-Vault"
+            6 -> "Sector 6: Plasma Reactor Core"
+            7 -> "Sector 7: Orbital Sky-Platform"
+            8 -> "Sector 8: Zero-Day Dark Citadel"
+            9 -> "Sector 9: Hyperion Grid Fortress"
+            10 -> "Sector 10: Chrono Warp Facility"
+            11 -> "Sector 11: Singularity Core"
+            else -> "Sector 12: Cyber Overlord Nexus"
         }
         val difficulty = when (sectorIndex) {
             1 -> "Normal"
             2 -> "Hard"
             3 -> "Cyberpunk"
-            else -> "Nightmare"
+            4 -> "Nightmare"
+            5 -> "Extreme"
+            6 -> "Ultra"
+            7 -> "Master"
+            8 -> "Legendary"
+            9 -> "Ascendant"
+            10 -> "Titan"
+            11 -> "Cosmic"
+            else -> "God Tier"
         }
 
         val enemyBuildings = generateEnemySectorMaze(sectorIndex)
@@ -188,6 +204,31 @@ class SiegeEngine {
             bitsLooted = 0,
             trophiesWon = 0,
             bannerMessage = "Battle Commenced! Tap troop icons below, then tap breach perimeter to deploy!"
+        )
+        isSimulating = true
+    }
+
+    // Start PvP Proximity Raid against a nearby player's base (Pokemon GO style)
+    fun startNearbyPlayerRaid(base: com.example.data.model.NearbyPlayerBase) {
+        val buildings = base.buildings.map { it.copy(currentHp = it.maxHp, isDestroyed = false) }
+        _raidState.value = RaidBattleState(
+            sectorName = "Proximity Breach: ${base.architectName}",
+            sectorDifficulty = base.rankTitle,
+            buildings = buildings,
+            troops = emptyList(),
+            elixir = 7.0f,
+            maxElixir = 10.0f,
+            timeRemainingSeconds = 90.0f,
+            totalBuildingsInitial = buildings.count { !it.type.isWall && !it.type.isTrap },
+            buildingsDestroyed = 0,
+            destructionPercent = 0,
+            starsEarned = 0,
+            isCoreDestroyed = false,
+            battleEnded = false,
+            isVictory = false,
+            bitsLooted = 0,
+            trophiesWon = 0,
+            bannerMessage = "Live Proximity Raid against ${base.architectName}'s Fortress! Destroy their Core!"
         )
         isSimulating = true
     }
@@ -321,6 +362,134 @@ class SiegeEngine {
                     gridY = 5,
                     currentHp = 300f + tier * 50f,
                     maxHp = 300f + tier * 50f
+                )
+            )
+        }
+        if (tier >= 4) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.GLITCH_MINE,
+                    gridX = 4,
+                    gridY = 3,
+                    currentHp = 80f,
+                    maxHp = 80f
+                )
+            )
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.GLITCH_MINE,
+                    gridX = 4,
+                    gridY = 5,
+                    currentHp = 80f,
+                    maxHp = 80f
+                )
+            )
+        }
+        if (tier >= 5) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.TESLA_PYLON,
+                    gridX = 3,
+                    gridY = 4,
+                    currentHp = 300f + tier * 60f,
+                    maxHp = 300f + tier * 60f
+                )
+            )
+        }
+        if (tier >= 6) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.PLASMA_MORTAR,
+                    gridX = 5,
+                    gridY = 4,
+                    currentHp = 320f + tier * 60f,
+                    maxHp = 320f + tier * 60f
+                )
+            )
+        }
+        if (tier >= 7) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.LASER_TURRET,
+                    gridX = 4,
+                    gridY = 2,
+                    currentHp = 350f + tier * 70f,
+                    maxHp = 350f + tier * 70f
+                )
+            )
+        }
+        if (tier >= 8) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.TESLA_PYLON,
+                    gridX = 4,
+                    gridY = 6,
+                    currentHp = 360f + tier * 60f,
+                    maxHp = 360f + tier * 60f
+                )
+            )
+        }
+        if (tier >= 9) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.GLITCH_MINE,
+                    gridX = 3,
+                    gridY = 3,
+                    currentHp = 100f,
+                    maxHp = 100f
+                )
+            )
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.GLITCH_MINE,
+                    gridX = 5,
+                    gridY = 5,
+                    currentHp = 100f,
+                    maxHp = 100f
+                )
+            )
+        }
+        if (tier >= 10) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.PLASMA_MORTAR,
+                    gridX = 2,
+                    gridY = 4,
+                    currentHp = 400f + tier * 50f,
+                    maxHp = 400f + tier * 50f
+                )
+            )
+        }
+        if (tier >= 11) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.LASER_TURRET,
+                    gridX = 6,
+                    gridY = 4,
+                    currentHp = 420f + tier * 50f,
+                    maxHp = 420f + tier * 50f
+                )
+            )
+        }
+        if (tier >= 12) {
+            list.add(
+                MazeBuilding(
+                    id = nextId++,
+                    type = DefenseType.TESLA_PYLON,
+                    gridX = 4,
+                    gridY = 1,
+                    currentHp = 500f + tier * 50f,
+                    maxHp = 500f + tier * 50f
                 )
             )
         }

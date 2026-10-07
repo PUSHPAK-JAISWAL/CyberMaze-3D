@@ -209,6 +209,19 @@ data class RadarNode(
     val angleDegrees: Float = 0f // Direction on radar
 )
 
+// Pokemon GO style Proximity Player Base (Nearby Architect base detected by Geo-Radar)
+data class NearbyPlayerBase(
+    val id: String,
+    val architectName: String,
+    val rankTitle: String,
+    val distanceMeters: Int,
+    val angleDegrees: Float,
+    val trophyCount: Int,
+    val lootableBits: Int,
+    val isDefeated: Boolean = false,
+    val buildings: List<MazeBuilding> = emptyList()
+)
+
 // Live Raid State
 data class RaidBattleState(
     val sectorName: String = "Syndicate Outpost Alpha",

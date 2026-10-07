@@ -57,6 +57,7 @@ import com.example.data.local.entities.GameSettingsEntity
 import com.example.data.local.entities.LevelEntity
 import com.example.data.model.CardItem
 import com.example.data.model.MazeBuilding
+import com.example.data.model.NearbyPlayerBase
 import com.example.data.model.RaidBattleState
 import com.example.data.model.RadarNode
 import com.example.data.sensor.MotionTelemetry
@@ -118,6 +119,7 @@ fun CyberMazeApp(viewModel: MainViewModel) {
     val isHowToPlayOpen by viewModel.isHowToPlayOpen.collectAsStateWithLifecycle()
     val currentSector by viewModel.currentSector.collectAsStateWithLifecycle()
     val maxUnlockedSector by viewModel.maxUnlockedSector.collectAsStateWithLifecycle()
+    val nearbyPlayerBases by viewModel.nearbyPlayerBases.collectAsStateWithLifecycle()
 
     // In-App GitHub Update Dialog
     UpdateDialog(
@@ -243,7 +245,8 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         aiBaseAudit = aiBaseAudit,
                         isAuditingBase = isAuditingBase,
                         currentSector = currentSector,
-                        maxUnlockedSector = maxUnlockedSector
+                        maxUnlockedSector = maxUnlockedSector,
+                        nearbyPlayerBases = nearbyPlayerBases
                     )
                 }
             }
@@ -428,7 +431,8 @@ fun CyberMazeApp(viewModel: MainViewModel) {
                         aiBaseAudit = aiBaseAudit,
                         isAuditingBase = isAuditingBase,
                         currentSector = currentSector,
-                        maxUnlockedSector = maxUnlockedSector
+                        maxUnlockedSector = maxUnlockedSector,
+                        nearbyPlayerBases = nearbyPlayerBases
                     )
                 }
             }
@@ -455,7 +459,8 @@ private fun ScreenContent(
     aiBaseAudit: String,
     isAuditingBase: Boolean,
     currentSector: Int,
-    maxUnlockedSector: Int
+    maxUnlockedSector: Int,
+    nearbyPlayerBases: List<NearbyPlayerBase> = emptyList()
 ) {
     when (currentTab) {
         AppNavTab.RAID -> {
@@ -498,8 +503,10 @@ private fun ScreenContent(
                 telemetry = telemetry,
                 motionTracker = viewModel.motionTracker,
                 radarNodes = radarNodes,
+                nearbyBases = nearbyPlayerBases,
                 onClaimNode = { nodeId -> viewModel.claimRadarNode(nodeId) },
                 onTriggerReconDrone = { viewModel.triggerReconDrone() },
+                onAttackNearbyBase = { baseId -> viewModel.attackNearbyPlayerBase(baseId) },
                 onStartRaid = { viewModel.selectTab(AppNavTab.RAID) }
             )
         }

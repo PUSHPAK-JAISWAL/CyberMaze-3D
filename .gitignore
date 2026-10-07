@@ -16,3 +16,7 @@
 local.properties
 .env
 debug.keystore
+
+# Web / React Website
+website/node_modules
+website/dist
