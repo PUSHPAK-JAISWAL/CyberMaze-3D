@@ -35,17 +35,15 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: website/package.json
+          cache-dependency-path: website/package-lock.json
 
       - name: Install Website Dependencies
-        run: |
-          cd website
-          npm ci || npm install
+        working-directory: ./website
+        run: npm install
 
       - name: Build React Website
-        run: |
-          cd website
-          npm run build
+        working-directory: ./website
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
