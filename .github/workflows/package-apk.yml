@@ -60,7 +60,7 @@ jobs:
           ls -lh release_assets/
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.versioning.outputs.computed_tag }}
           name: "CyberMaze 3D ${{ steps.versioning.outputs.computed_tag }}"
