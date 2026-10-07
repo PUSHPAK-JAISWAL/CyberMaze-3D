@@ -23,8 +23,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('raids');
 
   // Releases download link (latest GitHub release APK)
-  const apkDownloadUrl = "https://github.com/Pushpak1302/CyberMaze/releases/latest/download/CyberMaze-3D.apk";
-  const repoUrl = "https://github.com/Pushpak1302/CyberMaze";
+  const apkDownloadUrl = "https://github.com/PUSHPAK-JAISWAL/CyberMaze-3D/releases/latest/download/CyberMaze-3D.apk";
+  const repoUrl = "https://github.com/PUSHPAK-JAISWAL/CyberMaze-3D";
 
   const sectors = [
     { lvl: 1, name: "Neon Alley", diff: "Normal", color: "#00C882", badge: "Lasers" },
